@@ -8,7 +8,8 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using RestSharp;
-
+using HtmlAgilityPack;
+using System.Text.RegularExpressions;
 namespace ReportGenerators
 {
     //Name space for all classes needed for the ReportGenerators
@@ -312,78 +313,145 @@ namespace ReportGenerators
         public TimeSpan VideoLength { get; }
         public bool Transcript { get; }
     }
-    public abstract class RGeneratorBase
+    public class DataToParse
+    {
+        public DataToParse(string location, string page_body)
+        {
+            this.Location = location;
+            Doc = new HtmlDocument();
+            Doc.Load(page_body);
+        }
+        public string Location;
+        public HtmlDocument Doc;
+    }
+    public abstract class RParserBase
     {
         //Base class for each of the reports
         //Due to there being multiple possible inputs to parse through, need to have a constructor for each type.
-        public RGeneratorBase(string course_id)
-        {
-            Course = new CourseInfo(course_id);
-        }
-        public RGeneratorBase(int course_id)
-        {
-            Course = new CourseInfo(course_id);
-        }
-        public RGeneratorBase(CourseInfo course_info)
-        {
-            Course = course_info;
-        }
-        public List<PageData> Data { get; set; }
-        public CourseInfo Course { get; set; }
-        public abstract void ProccessContent(string page_body);
+        public RParserBase() { }
+        public List<PageData> Data { get; set; } = new List<PageData>();
+        public DataToParse PageDocument;
+        public abstract void ProcessContent(Dictionary<string, string> page_info);
 
     }
-    public class A11yGenerator : RGeneratorBase
+    public class A11yParser : RParserBase
     {
         //Class to do an accessibiltiy report
-        public A11yGenerator(string course_id) : base(course_id) { }
-        public A11yGenerator(int course_id) : base(course_id) { }
-        public A11yGenerator(CourseInfo course_info) : base(course_info) { }
-        public override void ProccessContent(string page_body)
+        A11yParser() { }
+        public override void ProcessContent(Dictionary<string, string> page_info)
         {
-            throw new NotImplementedException();
+            PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
+
+            ProcessLinks();
+            ProcessImages();
+            ProcessIframes();
+            ProcessTables();
+            ProcessBrightcoveVideoHTML();
+            ProcessHeaders();
+            ProcessSemantics();
+            ProcessVideoTags();
+            ProcessFlash();
+            ProcessColor();
         }
-        public void ProccessLinks(string[] LinkArray)
+        private void ProcessLinks()
         {
-            throw new NotImplementedException();
+            var link_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//a");
+            foreach(var link in link_list)
+            {
+                if(link.Attributes["onclick"] != null)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "JavaScript links are not accessible", 1));
+                }
+                else if(link.Attributes["href"] == null)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "Empty link tag", 1));
+                }
+                if (link.InnerText.Contains("<img"))
+                {
+                    continue;
+                }
+                if(link.InnerText == null)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", "Invisible link with no text", "Adjust Link Text", 1));
+                }else if(new Regex("^ ?here").IsMatch(link.InnerText))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
+                }else if(new Regex("^ ?[A-Za-z\\.]+ ?$").IsMatch(link.InnerText))
+                {
+                    if(link_list.Where(s => s.InnerText == link.InnerText).Count() > 1)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
+                    }
+                }else if(new Regex("http|www\\.|Link|Click").IsMatch(link.InnerText))
+                {
+                    if(new Regex("Links to an external site").IsMatch(link.InnerText))
+                    {
+                        continue;
+                    }
+                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
+                }
+            }
         }
-        public void ProccessImages(string page_body)
+        private void ProcessImages()
         {
-            throw new NotImplementedException();
+            
+        }
+        private void ProcessTables()
+        {
+
+        }
+        private void ProcessIframes()
+        {
+
+        }
+        private void ProcessBrightcoveVideoHTML()
+        {
+
+        }
+        private void ProcessHeaders()
+        {
+
+        }
+        private void ProcessSemantics()
+        {
+
+        }
+        private void ProcessVideoTags()
+        {
+
+        }
+        private void ProcessFlash()
+        {
+
+        }
+        private void ProcessColor()
+        {
+
         }
     }
-    public class MediaGenerator : RGeneratorBase
+    public class MediaParser : RParserBase
     {
         //Class to do a media report
-        public MediaGenerator(string course_id) : base(course_id)
-        {
-            Chrome = new ChromeDriver(@"E:\SeleniumTest");
-            Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
-        }
-        public MediaGenerator(int course_id) : base(course_id)
-        {
-            Chrome = new ChromeDriver(@"E:\SeleniumTest");
-            Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
-        }
-        public MediaGenerator(CourseInfo course_info) : base(course_info)
+        public MediaParser()
         {
             Chrome = new ChromeDriver(@"E:\SeleniumTest");
             Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
         }
         //Gen a media report
-        public ChromeDriver Chrome { get; set; }
-        public WebDriverWait Wait { get; set; }
-        public override void ProccessContent(string page_body)
+        private ChromeDriver Chrome { get; set; }
+        private WebDriverWait Wait { get; set; }
+        public override void ProcessContent(Dictionary<string, string> page_info)
         {
             throw new NotImplementedException();
         }
     }
-    public class LinkGenerator : RGeneratorBase
+    public class LinkParser : RParserBase
     {
         //class to do a link report
-        public LinkGenerator(string course_id) : base(course_id) { }
-        public LinkGenerator(int course_id) : base(course_id) { }
-        public override void ProccessContent(string page_body)
+        public LinkParser() { }
+        public override void ProcessContent(Dictionary<string, string> page_info)
         {
             throw new NotImplementedException();
         }
