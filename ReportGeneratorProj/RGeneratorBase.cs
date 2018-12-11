@@ -2,14 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using RestSharp;
 using HtmlAgilityPack;
 using System.Text.RegularExpressions;
+using OfficeOpenXml;
+using System.IO;
+using System.Reflection;
+
 namespace ReportGenerators
 {
     //Name space for all classes needed for the ReportGenerators
@@ -181,6 +182,11 @@ namespace ReportGenerators
         {
             //Constructor for if a directory path is input
             this.CourseIdOrPath = course_path;
+            string[] array = course_path.Split('\\');
+            this.CourseName = array.Take(array.Length - 1).LastOrDefault();
+            this.CourseCode = array.Take(array.Length - 1).LastOrDefault();
+
+            PageHtmlList = new List<Dictionary<string, string>>();
         }
         public CourseInfo(int course_id)
         {
@@ -288,6 +294,16 @@ namespace ReportGenerators
         public string Element { get; }
         public string Id { get; }
         public string Text { get; }
+        public override string ToString()
+        {
+            var props = typeof(PageData).GetProperties();
+            var sb = new StringBuilder();
+            foreach(var p in props)
+            {
+                sb.AppendLine(p.Name + ": " + p.GetValue(this, null));
+            }
+            return sb.ToString();
+        }
     }
     public class PageA11yData : PageData
     {
@@ -299,6 +315,16 @@ namespace ReportGenerators
         }
         public string Issue { get; }
         public int Severity { get; }
+        public override string ToString()
+        {
+            var props = typeof(PageA11yData).GetProperties();
+            var sb = new StringBuilder();
+            foreach (var p in props)
+            {
+                sb.AppendLine(p.Name + ": " + p.GetValue(this, null));
+            }
+            return sb.ToString();
+        }
     }
     public class PageMediaData : PageData
     {
@@ -312,6 +338,16 @@ namespace ReportGenerators
         public Uri MediaUrl { get; }
         public TimeSpan VideoLength { get; }
         public bool Transcript { get; }
+        public override string ToString()
+        {
+            var props = typeof(PageMediaData).GetProperties();
+            var sb = new StringBuilder();
+            foreach (var p in props)
+            {
+                sb.AppendLine(p.Name + ": " + p.GetValue(this, null));
+            }
+            return sb.ToString();
+        }
     }
     public class DataToParse
     {
@@ -319,7 +355,7 @@ namespace ReportGenerators
         {
             this.Location = location;
             Doc = new HtmlDocument();
-            Doc.Load(page_body);
+            Doc.LoadHtml(page_body);
         }
         public string Location;
         public HtmlDocument Doc;
@@ -337,9 +373,12 @@ namespace ReportGenerators
     public class A11yParser : RParserBase
     {
         //Class to do an accessibiltiy report
-        A11yParser() { }
+        public A11yParser() { }
         public override void ProcessContent(Dictionary<string, string> page_info)
         {
+            if(page_info[page_info.Keys.ElementAt(0)] == null){
+                return;
+            }
             PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
 
             ProcessLinks();
@@ -358,6 +397,10 @@ namespace ReportGenerators
             var link_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//a");
+            if(link_list == null)
+            {
+                return;
+            }
             foreach(var link in link_list)
             {
                 if(link.Attributes["onclick"] != null)
@@ -456,13 +499,103 @@ namespace ReportGenerators
             throw new NotImplementedException();
         }
     }
+    public class CreateExcelReport
+    {
+        public CreateExcelReport(string destination_path)
+        {
+            this.Destination = destination_path;
+            this.Excel = new ExcelPackage(new FileInfo(PathToExcelTemplate));
+            this.Cells = Excel.Workbook.Worksheets[1].Cells;
+            this.RowNumber = 9;
+        }
+        private string Destination;
+        private string PathToExcelTemplate = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\CAR - Accessibility Review Template.xlsx";
+        private ExcelPackage Excel;
+        private ExcelRange Cells;
+        private int RowNumber;
+        private void A11yAddToCell(string issue_type, string descriptive_error, string notes, int severity = 1, int occurence = 1, int detection = 1)
+        {
+            Cells[RowNumber, 4].Value = issue_type;
+            Cells[RowNumber, 5].Value = descriptive_error;
+            Cells[RowNumber, 6].Value = notes;
+            Cells[RowNumber, 7].Value = severity;
+            Cells[RowNumber, 8].Value = occurence;
+            Cells[RowNumber, 9].Value = detection;
+        }
+        public void CreateReport(List<PageData> A11yData, List<PageData> MediaData, List<PageData> LinkData)
+        {
+            if (null != A11yData)
+            {
+                AddA11yData(A11yData);
+            }
+            if(null != MediaData)
+            {
+                AddMediaData(MediaData);
+            }
+            if (null != LinkData)
+            {
+                AddLinkData(LinkData);
+            }
+            var test_path = new DirectoryInfo(Path.GetDirectoryName(Destination));
+            if (!(test_path.Exists))
+            {
+                test_path.Create();
+            }
+            Excel.SaveAs(new FileInfo(Destination));
+            Excel.Dispose();
+        }
+        private void AddA11yData(List<PageData> data_list)
+        {
+            RowNumber = 9;
+            Cells = Excel.Workbook.Worksheets[1].Cells;
+            foreach(var data in data_list)
+            {
+                Cells[RowNumber, 2].Value = "Not Started";
+                Cells[RowNumber, 2].Value = data.Location;
+                switch ((data as PageA11yData).Issue)
+                {
+                    case "Adjust Link Text":
+                        A11yAddToCell("Link", "Non-Descriptive Link", data.Text);
+                        break;
+                    case "JavaScript links are not accessible":
+                        A11yAddToCell("Link", "JavaScript Link", data.Text);
+                        break;
+                    case "Broken link":
+                        A11yAddToCell("Link", "Broken Link", data.Text);
+                        break;
+                    case "Empty link tag":
+                        A11yAddToCell("Link", "Broken Link", data.Text);
+                        break;
+                    default:
+                        A11yAddToCell("", "", (data.Element + "\n" + data.Text + "\n" + (data as PageA11yData).Issue));
+                        break;
+                }
+                RowNumber++;
+            }
+        }
+        private void AddMediaData(List<PageData> data_list)
+        {
 
+        }
+        private void AddLinkData(List<PageData> data_list)
+        {
+
+        }
+    }
     public class GenerateReport
     {
         //This is where the program will start and take user input / run the reports, may or may not be needed based on how I can get the SpecFlow test to work.
         public static void Main()
         {
             CourseInfo course = new CourseInfo(1026);
+            A11yParser ParseForA11y = new A11yParser();
+            foreach (var page in course.PageHtmlList)
+            {
+                ParseForA11y.ProcessContent(page);
+            }
+            var Destination = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + $"\\Reports\\ARC_{course.CourseCode}.xlsx";
+            CreateExcelReport GenReport = new CreateExcelReport(Destination);
+            GenReport.CreateReport(ParseForA11y.Data, null, null);
             Console.ReadLine();
         }
     }

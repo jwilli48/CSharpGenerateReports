@@ -30,6 +30,7 @@ namespace UnitTestProject1
             Assert.AreEqual("asdf", A11yPage.Text);
             Assert.AreEqual("Empty href", (A11yPage as PageA11yData).Issue);
             Assert.AreEqual(1, (A11yPage as PageA11yData).Severity);
+            Console.WriteLine((A11yPage as PageA11yData).ToString());
         }
     }
 }
