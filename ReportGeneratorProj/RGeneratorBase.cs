@@ -360,6 +360,17 @@ namespace ReportGenerators
         public string Location;
         public HtmlDocument Doc;
     }
+    public class VideoParser
+    {
+        public static bool CheckTranscript(HtmlNode element)
+        {
+            if(element.NextSibling.OuterHtml.Contains("transcript") || element.NextSibling.NextSibling.OuterHtml.Contains("transcript"))
+            {
+                return true;
+            }
+            return false;
+        }
+    }
     public abstract class RParserBase
     {
         //Base class for each of the reports
@@ -411,7 +422,7 @@ namespace ReportGenerators
                 {
                     Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "Empty link tag", 1));
                 }
-                if (link.InnerText.Contains("<img"))
+                if (link.InnerHtml.Contains("<img"))
                 {
                     continue;
                 }
@@ -439,40 +450,324 @@ namespace ReportGenerators
         }
         private void ProcessImages()
         {
-            
+            var image_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//img");
+            if(image_list == null)
+            {
+                return;
+            }
+            foreach(var image in image_list)
+            {
+                var alt = image.Attributes["alt"]?.Value;
+                if (alt == null)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", image.OuterHtml, "No alt attribute", 1));
+                }
+                else if (new Regex("banner").IsMatch(alt))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                }
+                else if (new Regex("Placeholder").IsMatch(alt))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                }
+                else if (new Regex("\\.jpg").IsMatch(alt))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                }
+                else if(new Regex("\\.png").IsMatch(alt))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                }
+                else if(new Regex("http").IsMatch(alt))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                }
+                else if(new Regex("LaTeX:").IsMatch(alt))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                }
+            }
         }
         private void ProcessTables()
         {
-
+            var table_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//table");
+            if(table_list == null)
+            {
+                return;
+            }
+            var table_num = 1;
+            foreach(var table in table_list)
+            {
+                var table_headers = table.SelectNodes(".//th");
+                var table_data_cells = table.SelectNodes(".//td");
+                var table_rows = table.SelectNodes(".//tr");
+                var stretched_cells = table.SelectNodes(".//*[@colspan]");
+                string issues = "";
+                if(stretched_cells != null)
+                {
+                    issues += "Stretched table cell(s) should be a <caption> title for the table";
+                }
+                var num_rows = table_rows.Count();
+                if(num_rows >= 3)
+                {
+                    if(table_headers == null)
+                    {
+                        issues += "\nTable has no headers";
+                    }
+                }
+                var scope_headers = table_headers?.Count(c => c.Attributes["scope"] != null);
+                if(scope_headers == null || scope_headers <= table_headers.Count())
+                {
+                    issues += "\nTable headers should have a scope attribute";
+                }
+                var scope_cells = table_data_cells?.Count(c => c.Attributes["scope"] != null);
+                if(scope_cells != null && scope_cells > 0)
+                {
+                    issues += "\nNon-header table cells should not have scope attributes";
+                }
+                if(issues != null && issues != "")
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Table", "", $"Table number {table_num}:`n{issues}", "Revise table", 1));
+                }
+                table_num++;
+            }
         }
         private void ProcessIframes()
         {
-
+            var iframe_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//iframe");
+            if(iframe_list == null)
+            {
+                return;
+            }
+            var iframe_number = 1;
+            foreach(var iframe in iframe_list)
+            {
+                var src = iframe.Attributes["src"].Value;
+                if (iframe.Attributes["title"] == null)
+                {
+                    if(new Regex("youtube").IsMatch(src))
+                    {
+                        var uri = new Uri(src);
+                        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                        var videoId = string.Empty;
+                        if (query.AllKeys.Contains("v"))
+                        {
+                            videoId = query["v"];
+                        }
+                        else
+                        {
+                            videoId = uri.Segments.Last();
+                        }
+                        Data.Add(new PageA11yData(PageDocument.Location, "Youtube Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("brightcove").IsMatch(src))
+                    {
+                        var videoId = src.Split('=').Last().Split('&')[0];
+                        if (!src.Contains("https:"))
+                        {
+                            src = $"https:{src}";
+                        }
+                        Data.Add(new PageA11yData(PageDocument.Location, "Brightcove Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("H5P").IsMatch(src))
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "H5P", "", "", "Needs a title", 1));
+                    }else if(new Regex("byu\\.mediasite").IsMatch(src))
+                    {
+                        var videoId = src.Split('/').Last();
+                        Data.Add(new PageA11yData(PageDocument.Location, "BYU Mediasite Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("panopto").IsMatch(src))
+                    {
+                        var videoId = src.Split('=').Last().Split('&')[1];
+                        Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("alexanderstreet").IsMatch(src))
+                    {
+                        var videoId = src.Split(new string[] { "token/" }, StringSplitOptions.None).Last();
+                        Data.Add(new PageA11yData(PageDocument.Location, "AlexanderStreen Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("kanopy").IsMatch(src))
+                    {
+                        var videoId = src.Split(new string[] { "embed/" }, StringSplitOptions.None).Last();
+                        Data.Add(new PageA11yData(PageDocument.Location, "Kanopy Video", videoId, "", "Needs a title", 1));
+                    }
+                    else if(new Regex("ambrosevideo").IsMatch(src))
+                    {
+                        var videoId = src.Split('?').Last().Split('&')[0];
+                        Data.Add(new PageA11yData(PageDocument.Location, "Ambrose Video", videoId, "", "NEeds a title", 1));
+                    }else if(new Regex("facebook").IsMatch(src))
+                    {
+                        var videoId = new Regex("\\d{17}").Match(src).Value;
+                        Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("dailymotion").IsMatch(src))
+                    {
+                        var videoId = src.Split('/').Last();
+                        Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
+                    }else if(new Regex("vimeo").IsMatch(src))
+                    {
+                        var videoId = src.Split('/').Last().Split('?')[0];
+                        Data.Add(new PageA11yData(PageDocument.Location, "Vimeo Video", videoId, "", "Needs a title", 1));
+                    }
+                    else
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Iframe", "", "", "Needs a title", 1));
+                    }
+                }
+                if (new Regex("brightcove|byu\\.mediasite|panopto|vimeo|dailymotion|facebook|ambrosevideo|kanopy|alexanderstreet").IsMatch(src))
+                {
+                    if (!VideoParser.CheckTranscript(iframe))
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Transcript", "", $"Video number {iframe_number} on page", "No transcript found", 5));
+                    }
+                }
+                iframe_number++;
+            }
         }
         private void ProcessBrightcoveVideoHTML()
         {
-
+            var brightcove_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//div[matches(@id, '\\d{13}')");
+            if(brightcove_list == null)
+            {
+                return;
+            }
+            foreach (var video in brightcove_list)
+            {
+                if (!VideoParser.CheckTranscript(video))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Transcript", video.Attributes["id"].Value, $"No transcript found for BrightCove video with id:\n{video.Attributes["id"].Value}", "No transcript found", 5));
+                }
+            }
         }
         private void ProcessHeaders()
         {
-
+            var header_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//h1 | //h2 | //h3 | //h4 | //h5 | //h6");
+            if(header_list == null)
+            {
+                return;
+            }
+            foreach(var header in header_list)
+            {
+                if (header.Attributes["class"].Value.Contains("screenreader-only"))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Header", "", header.OuterHtml, "Check if header is meant to be invisible", 1));
+                }
+            }
         }
         private void ProcessSemantics()
         {
-
+            var i_or_b_tag_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//i | //b");
+            if(i_or_b_tag_list == null)
+            {
+                return;
+            }else if(i_or_b_tag_list.Count() > 0)
+            {
+                Data.Add(new PageA11yData(PageDocument.Location, "<i> or <b> tags", "", "Page contains <i> or <b> tags", "<i>/<b> tags should be <em>/<strong> tags", 1));
+            }
         }
         private void ProcessVideoTags()
         {
-
+            var videotag_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//video");
+            if(videotag_list == null)
+            {
+                return;
+            }
+            foreach(var videotag in videotag_list)
+            {
+                var src = videotag.Attributes["src"].Value;
+                var videoId = src.Split('=')[1].Split('&')[0];
+                if (!VideoParser.CheckTranscript(videotag))
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videoId, "Inline Media Video\n", "No transcript found", 5));
+                }
+            }
         }
         private void ProcessFlash()
         {
+            var flash_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//object[contains(@id, \"flash\"");
+            if(flash_list == null)
+            {
+                return;
+            }
+            else if(flash_list.Count() > 0)
+            {
+                Data.Add(new PageA11yData(PageDocument.Location, "Flash Element", "", $"{flash_list.Count()} embedded flash element(s) on this page", "Flash is inaccessible", 5));
+            }
 
         }
         private void ProcessColor()
         {
-
+            var colored_element_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//*[contains(@style, \"color\"");
+            if(colored_element_list == null)
+            {
+                return;
+            }
+            foreach(var color in colored_element_list)
+            {
+                System.Web.UI.CssStyleCollection style = new System.Web.UI.WebControls.Panel().Style;
+                style.Value = color.Attributes["style"].Value;
+                var background_color = style["background-color"];
+                if(background_color == null)
+                {
+                    background_color = "FFFFFF";
+                }
+                var foreground_color = style["color"];
+                if(foreground_color == null)
+                {
+                    foreground_color = "000000";
+                }
+                if (!background_color.Contains("#"))
+                {
+                    int colorValue = System.Drawing.Color.FromName(background_color).ToArgb();
+                    background_color = string.Format("{0:x6}", colorValue);
+                }
+                if (!foreground_color.Contains('#'))
+                {
+                    int colorValue = System.Drawing.Color.FromName(foreground_color).ToArgb();
+                    foreground_color = string.Format("{0:x6}", colorValue);
+                }
+                foreground_color = foreground_color.Replace("#", "");
+                background_color = background_color.Replace("#", "");
+                var restClient = new RestClient($"https://webaim.org/resources/contrastchecker/?fcolor={foreground_color}&bcolor={background_color}&api");
+                var request = new RestRequest(Method.GET);
+                //Will return single course object with parameters we want
+                var response = restClient.Execute<ColorContrast>(request).Data;
+                if(response.AA != "pass")
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Color Contrast", "", $"Color: {foreground_color}\nBackgroundColor: {background_color}\n{response.ToString()}", "Does not meet AA color contrast", 1));
+                }
+            }
         }
+    }
+    public class ColorContrast
+    {
+        public double ratio { get; set;  }
+        public string AA { get; set;  }
+        public string AALarge { get; set; }
+        public override string ToString()
+        {
+            var props = typeof(ColorContrast).GetProperties();
+            var sb = new StringBuilder();
+            foreach (var p in props)
+            {
+                sb.AppendLine(p.Name + ": " + p.GetValue(this, null));
+            }
+            return sb.ToString();
+        }
+
     }
     public class MediaParser : RParserBase
     {
@@ -541,6 +836,12 @@ namespace ReportGenerators
             {
                 test_path.Create();
             }
+            var i = 1;
+            while(new FileInfo(Destination).Exists)
+            {
+                Destination = Destination.Replace(".xlsx", $"_V{i}.xlsx");
+                i++;
+            }
             Excel.SaveAs(new FileInfo(Destination));
             Excel.Dispose();
         }
@@ -552,19 +853,46 @@ namespace ReportGenerators
             {
                 Cells[RowNumber, 2].Value = "Not Started";
                 Cells[RowNumber, 2].Value = data.Location;
-                switch ((data as PageA11yData).Issue)
+                switch ((data as PageA11yData).Issue.ToLower())
                 {
-                    case "Adjust Link Text":
+                    case "adjust link text":
                         A11yAddToCell("Link", "Non-Descriptive Link", data.Text);
                         break;
-                    case "JavaScript links are not accessible":
+                    case "javaScript links are not accessible":
                         A11yAddToCell("Link", "JavaScript Link", data.Text);
                         break;
-                    case "Broken link":
+                    case "broken link":
                         A11yAddToCell("Link", "Broken Link", data.Text);
                         break;
-                    case "Empty link tag":
+                    case "empty link tag":
                         A11yAddToCell("Link", "Broken Link", data.Text);
+                        break;
+                    case "needs a title":
+                        A11yAddToCell("Semantics", "Missing title/label", $"{data.Element} needs a title attribute\nID: {data.Id}");
+                        break;
+                    case "no alt attribute":
+                        A11yAddToCell("Image", "No Alt Attribute", data.Text);
+                        break;
+                    case "alt text may need adjustment":
+                        A11yAddToCell("Image", "Non-Descriptive alt tags", data.Text);
+                        break;
+                    case "check if header is meant to be invisible and is not a duplicate":
+                        A11yAddToCell("Semantics", "Improper Headings", $"Invisible header:\n{data.Text}");
+                        break;
+                    case "no transcript found":
+                        A11yAddToCell("Media", "Transcript Needed", data.Text);
+                        break;
+                    case "revise table":
+                        A11yAddToCell("Table", "", data.Text);
+                        break;
+                    case "<i>/<b> tags should be <em>/<strong> tags":
+                        A11yAddToCell("Semantics", "Bad use of <i> and/or <b>", (data as PageA11yData).Issue);
+                        break;
+                    case "flash is inaccessible":
+                        A11yAddToCell("Misc", "", $"{data.Text}\n{(data as PageA11yData).Issue}");
+                        break;
+                    case "does not meet aa color contrast":
+                        A11yAddToCell("Color", "Doesn't meet contrast ratio", $"{(data as PageA11yData).Issue}\n{data.Text}");
                         break;
                     default:
                         A11yAddToCell("", "", (data.Element + "\n" + data.Text + "\n" + (data as PageA11yData).Issue));
@@ -596,6 +924,7 @@ namespace ReportGenerators
             var Destination = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + $"\\Reports\\ARC_{course.CourseCode}.xlsx";
             CreateExcelReport GenReport = new CreateExcelReport(Destination);
             GenReport.CreateReport(ParseForA11y.Data, null, null);
+            
             Console.ReadLine();
         }
     }
