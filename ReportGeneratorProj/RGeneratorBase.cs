@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using System.IO;
 using System.Reflection;
+using System.Web.Script.Serialization;
 
 namespace ReportGenerators
 {
@@ -90,14 +91,19 @@ namespace ReportGenerators
         public string question_text { get; set; }
         public List<CanvasQuizQuestionAnswers> answers{ get; set;}
     }
-    public class CanvasApi
+    public static class CanvasApi
     {
         //Class to control interaction with the Canvas API
         //Token is needed to authenticate, will need to adjust this to be stored in a seperate file instead of in this code.
-        private const string token = "";
+        private static string token = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
         //THe base domain url for the API
         //BYU has 3 main domain names
-        private const string domain = "byu.instructure.com";
+        private static string domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
+        public static void ResetApiCreds()
+        {
+            token = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
+            domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
+        }
         public static CanvasCourse GetCanvasCourse(int course_id)
         {
             //Will send request for basic course information
@@ -771,10 +777,11 @@ namespace ReportGenerators
     }
     public class MediaParser : RParserBase
     {
+        private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";
         //Class to do a media report
         public MediaParser()
         {
-            Chrome = new ChromeDriver(@"E:\SeleniumTest");
+            Chrome = new ChromeDriver(PathToChromedriver);
             Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
         }
         //Gen a media report
@@ -915,6 +922,10 @@ namespace ReportGenerators
         //This is where the program will start and take user input / run the reports, may or may not be needed based on how I can get the SpecFlow test to work.
         public static void Main()
         {
+            string test = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
+            Console.WriteLine(test);
+            Console.ReadLine();
+
             CourseInfo course = new CourseInfo(1026);
             A11yParser ParseForA11y = new A11yParser();
             foreach (var page in course.PageHtmlList)
@@ -924,7 +935,6 @@ namespace ReportGenerators
             var Destination = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + $"\\Reports\\ARC_{course.CourseCode}.xlsx";
             CreateExcelReport GenReport = new CreateExcelReport(Destination);
             GenReport.CreateReport(ParseForA11y.Data, null, null);
-            
             Console.ReadLine();
         }
     }
