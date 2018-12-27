@@ -16,6 +16,7 @@ using SeleniumExtentions;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
+using System.Management.Automation;
 
 namespace ReportGenerators
 {
@@ -88,9 +89,9 @@ namespace ReportGenerators
         private static string GoogleApi = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyGoogleApi.txt").Replace("\r\n", "");
         public static bool CheckTranscript(HtmlNode element)
         {
-            if(element.NextSibling.OuterHtml.Contains("transcript") 
-                || element.NextSibling.NextSibling.OuterHtml.Contains("transcript") 
-                || element.NextSibling.NextSibling.NextSibling.OuterHtml.Contains("transcript"))
+            if(element.NextSibling?.OuterHtml.Contains("transcript") == true
+                || element.NextSibling?.NextSibling?.OuterHtml.Contains("transcript") == true
+                || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml.Contains("transcript") == true)
             {
                 return true;
             }
@@ -880,9 +881,11 @@ namespace ReportGenerators
         //Class to do a media report
         public MediaParser()
         {
+            var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
+            chromeDriverService.HideCommandPromptWindow = true;
             var ChromeOptions = new ChromeOptions();
             ChromeOptions.AddArguments("headless", "muteaudio");
-            Chrome = new ChromeDriver(PathToChromedriver, ChromeOptions);
+            Chrome = new ChromeDriver(chromeDriverService, ChromeOptions);
             Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
         }
         ~MediaParser()
@@ -890,10 +893,27 @@ namespace ReportGenerators
             Chrome.Quit();
         }
         //Gen a media report
-        private ChromeDriver Chrome { get; set; }
-        private WebDriverWait Wait { get; set; }
+        public ChromeDriver Chrome { get; set; }
+        public WebDriverWait Wait { get; set; }
+        private bool LoggedIntoBrightcove = false;
         public override void ProcessContent(Dictionary<string, string> page_info)
         {
+            if (!LoggedIntoBrightcove)
+            {
+                string BrightCoveUserName = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyBrightcoveUsername.txt").Replace("\n", "").Replace("\r", "");
+                var posh = PowerShell.Create();
+                posh.AddScript("process{$c = Get-Content \"$HOME\\Desktop\\AccessibilityTools\\ReportGenerators-master\\Passwords\\MyBrightcovePassword.txt\"; $s = $c | ConvertTo-SecureString; Write-Host (New-Object System.Management.Automation.PSCredential -ArgumentList 'asdf', $s).GetNetworkCredential().Password}"
+                );
+                posh.Invoke();
+                var password = posh.Streams.Information[0].ToString();
+
+                Chrome.Url = "https://signin.brightcove.com/login?redirect=https%3A%2F%2Fstudio.brightcove.com%2Fproducts%2Fvideocloud%2Fmedia";
+                Wait.UntilElementIsVisible("input[name*=\"email\"]").SendKeys(BrightCoveUserName);
+                Wait.UntilElementIsVisible("input[id*=\"password\"]").SendKeys(password);
+                Wait.UntilElementIsVisible("button[id*=\"signin\"]").Submit();
+
+                LoggedIntoBrightcove = true;
+            }
             if (page_info[page_info.Keys.ElementAt(0)] == null)
             {
                 return;
@@ -1446,7 +1466,11 @@ namespace ReportGenerators
     public class LinkParser : RParserBase
     {
         //class to do a link report
-        public LinkParser() { }
+        public LinkParser(string path)
+        {
+            Directory = path;
+        }
+        private string Directory = string.Empty;
         public override void ProcessContent(Dictionary<string, string> page_info)
         {
             if (page_info[page_info.Keys.ElementAt(0)] == null)
@@ -1479,16 +1503,29 @@ namespace ReportGenerators
         }
         private bool TestPath(string path)
         {
+            if(Directory == "None")
+            {
+                //Then we don't have a directory to compare against
+                return true;
+            }
             //Need to remove any HTML page location part of the file path as that will cause the test to fail.
             path = path.CleanSplit("#").FirstOrDefault();
-            if(new Regex("^\\.\\.").IsMatch(path))
+            try
             {
-                path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(PageDocument.Location), path));
+                if (new Regex("^\\.\\.").IsMatch(path))
+                {
+                    path = Path.GetFullPath(Path.Combine(Directory, path));
+                }
+                else
+                {
+                    path = Path.GetFullPath(Path.Combine(Directory, path));
+                }
             }
-            else
+            catch
             {
-                path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(PageDocument.Location), path));
+                return false;
             }
+            
 
             return File.Exists(path);
         }
@@ -1556,16 +1593,16 @@ namespace ReportGenerators
             {
                 if(image.Attributes["src"] != null)
                 {
-                    if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$").IsMatch(image.Attributes["href"].Value))
+                    if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$").IsMatch(image.Attributes["src"].Value))
                     {
 
                     }
                     else
                     {
-                        if (!TestPath(image.Attributes["href"].Value))
+                        if (!TestPath(image.Attributes["src"].Value))
                         {
                             Data.Add(new PageData(PageDocument.Location,
-                                                    image.Attributes["href"].Value,
+                                                    image.Attributes["src"].Value,
                                                     "",
                                                     "Image does not exist"));
                         }
@@ -1722,12 +1759,17 @@ namespace ReportGenerators
         
         private void AddLinkData(List<PageData> data_list)
         {
+            Cells = Excel.Workbook.Worksheets[3].Cells;
             RowNumber = 4;
             foreach (var data in data_list)
             {
                 Cells[RowNumber, 2].Value = data.Location.CleanSplit("/").LastOrDefault().CleanSplit("\\").LastOrDefault();
                 Cells[RowNumber, 2].Hyperlink = new System.Uri(data.Location);
                 Cells[RowNumber, 3].Value = data.Element;
+                if (data.Element.Contains("http"))
+                {
+                    Cells[RowNumber, 3].Hyperlink = new System.Uri(data.Element);
+                }
                 Cells[RowNumber, 4].Value = data.Text;
                 RowNumber++;
             }
@@ -1738,16 +1780,14 @@ namespace ReportGenerators
         //This is where the program will start and take user input / run the reports, may or may not be needed based on how I can get the SpecFlow test to work.
         public static void Main()
         {
-            CourseInfo course = new CourseInfo(1026);
-            MediaParser ParseForMedia = new MediaParser();
-            foreach (var page in course.PageHtmlList)
+            CourseInfo course = new CourseInfo(@"I:\Canvas\FOODS-043\FOODS-043-S003\HTML");
+            LinkParser parser = new LinkParser(course.CourseIdOrPath);
+            foreach(var page in course.PageHtmlList)
             {
-                ParseForMedia.ProcessContent(page);
+                parser.ProcessContent(page);
             }
-            var Destination = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + $"\\Reports\\ARC_{course.CourseCode}.xlsx";
-            CreateExcelReport GenReport = new CreateExcelReport(Destination);
-            GenReport.CreateReport(null, ParseForMedia.Data, null);
-            Console.ReadLine();
+            CreateExcelReport GenReport = new CreateExcelReport(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\AccessibilityTools\\ReportGenerators-master\\Reports\\ARC_{course.CourseCode}_{CanvasApi.CurrentDomain}.xlsx");
+            GenReport.CreateReport(null, null, parser.Data);
         }
     }
 }

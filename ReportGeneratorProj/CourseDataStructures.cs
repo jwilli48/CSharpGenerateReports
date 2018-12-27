@@ -20,6 +20,7 @@ namespace ReportGenerators
             PageHtmlList = new List<Dictionary<string, string>>();
             foreach(var file in Directory.GetFiles(course_path, "*.html", SearchOption.TopDirectoryOnly))
             {
+                Console.WriteLine(file.CleanSplit("\\").LastOrDefault());
                 string location = string.Empty;
                 switch (Path.GetPathRoot(file))
                 {
