@@ -8,6 +8,10 @@ using RestSharp;
 using System.IO;
 namespace ReportGenerators
 {
+    /*
+     * These are structures to hold and get the data using the CanvasAPI as well as the main static class to interact with and use the API.
+     * 
+     * */
     public class CanvasCourse
     {
         //https://canvas.instructure.com/doc/api/courses.html

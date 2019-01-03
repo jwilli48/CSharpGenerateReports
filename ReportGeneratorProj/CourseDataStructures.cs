@@ -4,11 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+
 namespace ReportGenerators
 {
     public class CourseInfo
     {
         //Class that will contain all of the courses info, including the URL and HTML body for each item
+        //This CourseInfo class will also use the CanvasAPI static class in order to fill it with the course information upon construction (this is the longest time consuming part of the program)
+        //Can't really make it multithreaded as the CanvasAPI has an access limit that would be used up to quickly if we run multiple requests at the same time.
+        //Should maybe make the fill object a mehtod instead of just inside the constructor.
         public CourseInfo(string course_path)
         {
             //Constructor for if a directory path is input
@@ -86,12 +90,12 @@ namespace ReportGenerators
                                     //Loop through all questions for specific quiz
                                     foreach (CanvasQuizQuesiton question in CanvasApi.GetCanvasQuizQuesitons(course_id, item.content_id))
                                     {
-                                        LocationAndBody[item.url] += question.question_text;
+                                        LocationAndBody[item.url] += "\n" + question.question_text;
                                         //Loop through all answers in the quiz
                                         foreach (CanvasQuizQuestionAnswers answer in question.answers)
                                         {
-                                            LocationAndBody[item.url] += answer.html;
-                                            LocationAndBody[item.url] += answer.comments_html;
+                                            LocationAndBody[item.url] += "\n" + answer.html;
+                                            LocationAndBody[item.url] += "\n" + answer.comments_html;
                                         }
                                     }
                                 }
@@ -110,6 +114,7 @@ namespace ReportGenerators
                                 break;
                             default:
                                 Console.WriteLine($"Not Supported:\n{item.type}");
+                                LocationAndBody["Empty"] = null;
                                 break;
                         }
                         //Add the location and HTML body to the List

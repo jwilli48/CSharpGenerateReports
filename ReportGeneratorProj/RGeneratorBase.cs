@@ -22,9 +22,9 @@ namespace ReportGenerators
 {
     
     public static class StringExtentions
-    {
+    {   //Helpful string extension methods
         public static string[] CleanSplit(this string ToSplit, string seperator)
-        {
+        {   //Splits a string and gets rid of any empty, null or whitespace only items.
             if(ToSplit == null)
             {
                 return null;
@@ -34,7 +34,7 @@ namespace ReportGenerators
                           .ToArray();
         }
         public static string[] CleanSplit(this string ToSplit, char seperator)
-        {
+        {   //Splits a string and gets rid of any empty, null or whitespace only items.
             if (ToSplit == null)
             {
                 return null;
@@ -44,7 +44,7 @@ namespace ReportGenerators
                           .ToArray();
         }
         public static string FirstCharToUpper(this string input)
-        {
+        {   //Capitalizes the first character of an input string
             switch (input)
             {
                 case null: throw new ArgumentNullException(nameof(input));
@@ -53,9 +53,8 @@ namespace ReportGenerators
             }
         }
     }
-    //Name space for all classes needed for the ReportGenerators
     public class DataToParse
-    {
+    {   //Object stored in the ReportParser objects that turns the html string from the CourseInfo object into a live HTML dom to be used by the parsers.
         public DataToParse(string location, string page_body)
         {
             this.Location = location;
@@ -67,7 +66,8 @@ namespace ReportGenerators
     }
    
     public class YoutubeData
-    {
+    {   //Class to get data from the Google API
+        //Needs the item object first that then contains the info
         public class ItemData
         {
             public class ContentDetails
@@ -82,23 +82,31 @@ namespace ReportGenerators
         public List<ItemData> items { get; set; }
     }
 
-    
+
     public static class VideoParser
     {
-        
+        //Static class to be used to parse information for any videos.
         private static string GoogleApi = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyGoogleApi.txt").Replace("\r\n", "");
         public static bool CheckTranscript(HtmlNode element)
-        {
-            if(element.NextSibling?.OuterHtml.Contains("transcript") == true
-                || element.NextSibling?.NextSibling?.OuterHtml.Contains("transcript") == true
-                || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml.Contains("transcript") == true)
+        {   //Checks if the input element has a transcript in the next 3 elements after it.
+            if (element.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
+            {
+                return true;
+            }
+            else if (element.ParentNode?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.ParentNode?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
             {
                 return true;
             }
             return false;
         }
         public static bool CheckTranscript(HtmlNode element, out string YesOrNo)
-        {
+        {   //If you want a string Yes or No output instead of a bool
             if (element.NextSibling.OuterHtml.Contains("transcript")
                 || element.NextSibling.NextSibling.OuterHtml.Contains("transcript")
                 || element.NextSibling.NextSibling.NextSibling.OuterHtml.Contains("transcript"))
@@ -109,8 +117,11 @@ namespace ReportGenerators
             YesOrNo = "No";
             return false;
         }
+        //Below is the functions to get the video length from various ID inputs. Uses Selenium ChromeDriver to get some of them without an API.
+        //They all return a timespan object with the length of the video. 
+        //It will return a timespan of 0 if the length could not be found.
         public static TimeSpan GetYoutubeVideoLength(string video_id)
-        {
+        {   
             string url = $"https://www.googleapis.com/youtube/v3/videos?id={video_id}&key={GoogleApi}&part=contentDetails";
             var restClient = new RestClient(url);
             var request = new RestRequest(Method.GET);
@@ -123,18 +134,7 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                length = wait.Until(c =>
-                {
-                    var el = c.FindElement(By.CssSelector("div[class*='runtime']"));
-                    if (el.Displayed)
-                    {
-                        return el;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }).Text;
+                length = wait.UntilElementIsVisible("div[class*=\"runtime\"]").Text;
             }
             catch
             {
@@ -156,18 +156,7 @@ namespace ReportGenerators
             {
                 while("0:00" == length || "" == length || null == length)
                 {
-                    length = wait.Until(c =>
-                    {
-                        var el = c.FindElement(By.CssSelector("span[class*=\"duration\"]"));
-                        if (el.Displayed)
-                        {
-                            return el;
-                        }
-                        else
-                        {
-                            return null;
-                        }
-                    }).Text;
+                    length = wait.UntilElementIsVisible("span[class*=\"duration\"]").Text;
                 }
             }
             catch
@@ -191,31 +180,9 @@ namespace ReportGenerators
             try
             {
                 while (chrome.FindElementsByCssSelector("[id=copyrightNoticeContainer]").FirstOrDefault().Displayed) { };
-                wait.Until(c =>
-                {
-                    var el = c.FindElement(By.CssSelector("div[aria-label=\"Play\"]"));
-                    if (el.Displayed)
-                    {
-                        return el;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }).Click();
+                wait.UntilElementIsVisible("div[aria-label=\"Play\"]").Click();
 
-                length = wait.Until(c =>
-                {
-                    var el = c.FindElement(By.CssSelector("span[class*=\"duration\"]"));
-                    if (el.Displayed)
-                    {
-                        return el;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }).Text;
+                length = wait.UntilElementIsVisible("span[class*=\"duration\"]").Text;
             }
             catch
             {
@@ -425,12 +392,12 @@ namespace ReportGenerators
     }
 
     public class ColorContrast
-    {
+    {   //Helper structure to get the information from the WebAIM color contrast API.
         public double ratio { get; set; }
         public string AA { get; set; }
         public string AALarge { get; set; }
         public override string ToString()
-        {
+        {   //We want it to print the information provided.
             var props = typeof(ColorContrast).GetProperties();
             var sb = new StringBuilder();
             foreach (var p in props)
@@ -497,7 +464,7 @@ namespace ReportGenerators
                 if(link.InnerText == null)
                 {   //See if it is a link without text
                     Data.Add(new PageA11yData(PageDocument.Location, "Link", "", "Invisible link with no text", "Adjust Link Text", 1));
-                }else if(new Regex("^ ?here").IsMatch(link.InnerText))
+                }else if(new Regex("^ ?here", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
                 {   //If it begins with the word here probably not descriptive link text
                     Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
                 }else if(new Regex("^ ?[A-Za-z\\.]+ ?$").IsMatch(link.InnerText))
@@ -506,7 +473,7 @@ namespace ReportGenerators
                     {   //And if the single word is used for more then one link
                         Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
                     }
-                }else if(new Regex("http|www\\.|Link|Click").IsMatch(link.InnerText))
+                }else if(new Regex("http|www\\.|Link|Click", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
                 {   //See if it is just a url
                     if(new Regex("Links to an external site").IsMatch(link.InnerText))
                     {   //This is commonly used in Canvas, we just ignore it
@@ -536,27 +503,27 @@ namespace ReportGenerators
                 {   //Images should have alt tags, even if it is empty
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", image.OuterHtml, "No alt attribute", 1));
                 }
-                else if (new Regex("banner").IsMatch(alt))
+                else if (new Regex("banner", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Banners shouldn't have alt text
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
                 }
-                else if (new Regex("Placeholder").IsMatch(alt))
+                else if (new Regex("Placeholder", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Placeholder probably means the alt text was forgotten to be changed
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
                 }
-                else if (new Regex("\\.jpg").IsMatch(alt))
+                else if (new Regex("\\.jpg", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Make sure it is not just the images file name
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
                 }
-                else if(new Regex("\\.png").IsMatch(alt))
+                else if(new Regex("\\.png", RegexOptions.IgnoreCase).IsMatch(alt))
                 {
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
                 }
-                else if(new Regex("http").IsMatch(alt))
+                else if(new Regex("http", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //It should not be a url
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
                 }
-                else if(new Regex("LaTeX:").IsMatch(alt))
+                else if(new Regex("LaTeX:", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Should not be latex (ran into this a couple of times)
                     Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
                 }
@@ -590,7 +557,8 @@ namespace ReportGenerators
                     issues += "\nStretched table cell(s) should be a <caption> title for the table";
                 }
                 //See how many rows there are, if there is 3 or more and there are no headers then flag it as needing headers
-                var num_rows = table_rows.Count();
+                
+                var num_rows = table_rows?.Count() == null ? 0 : table_rows.Count();
                 if(num_rows >= 3)
                 {
                     if(table_headers == null)
@@ -638,7 +606,7 @@ namespace ReportGenerators
                 if (iframe.Attributes["title"] == null)
                 {
                     //Only real accessiblity issue we can check is if it has a title or not
-                    if(new Regex("youtube").IsMatch(src))
+                    if(new Regex("youtube", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         //Get the youtube information
                         var uri = new Uri(src);
@@ -653,7 +621,7 @@ namespace ReportGenerators
                             videoId = uri.Segments.LastOrDefault();
                         }
                         Data.Add(new PageA11yData(PageDocument.Location, "Youtube Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("brightcove").IsMatch(src))
+                    }else if(new Regex("brightcove", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         //Get brightcove info
                         var videoId = src.CleanSplit("=").LastOrDefault().CleanSplit("&").FirstOrDefault();
@@ -662,31 +630,31 @@ namespace ReportGenerators
                             src = $"https:{src}";
                         }
                         Data.Add(new PageA11yData(PageDocument.Location, "Brightcove Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("H5P").IsMatch(src))
+                    }else if(new Regex("H5P", RegexOptions.IgnoreCase).IsMatch(src))
                     {   //H5P can just be added
                         Data.Add(new PageA11yData(PageDocument.Location, "H5P", "", "", "Needs a title", 1));
-                    }else if(new Regex("byu\\.mediasite").IsMatch(src))
+                    }else if(new Regex("byu\\.mediasite", RegexOptions.IgnoreCase).IsMatch(src))
                     {   //Get id
                         var videoId = src.CleanSplit("/").LastOrDefault();
                         Data.Add(new PageA11yData(PageDocument.Location, "BYU Mediasite Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("panopto").IsMatch(src))
+                    }else if(new Regex("panopto", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.CleanSplit('=').LastOrDefault().CleanSplit('&').ElementAtOrDefault(1);
                         Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("alexanderstreet").IsMatch(src))
+                    }else if(new Regex("alexanderstreet", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split(new string[] { "token/" }, StringSplitOptions.RemoveEmptyEntries)
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .LastOrDefault();
                         Data.Add(new PageA11yData(PageDocument.Location, "AlexanderStreen Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("kanopy").IsMatch(src))
+                    }else if(new Regex("kanopy", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split(new string[] { "embed/" }, StringSplitOptions.RemoveEmptyEntries)
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .LastOrDefault();
                         Data.Add(new PageA11yData(PageDocument.Location, "Kanopy Video", videoId, "", "Needs a title", 1));
                     }
-                    else if(new Regex("ambrosevideo").IsMatch(src))
+                    else if(new Regex("ambrosevideo", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split('?')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
@@ -695,17 +663,17 @@ namespace ReportGenerators
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .FirstOrDefault();
                         Data.Add(new PageA11yData(PageDocument.Location, "Ambrose Video", videoId, "", "NEeds a title", 1));
-                    }else if(new Regex("facebook").IsMatch(src))
+                    }else if(new Regex("facebook", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = new Regex("\\d{17}").Match(src).Value;
                         Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("dailymotion").IsMatch(src))
+                    }else if(new Regex("dailymotion", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split('/')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .LastOrDefault();
                         Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("vimeo").IsMatch(src))
+                    }else if(new Regex("vimeo", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split('/')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
@@ -720,8 +688,8 @@ namespace ReportGenerators
                         Data.Add(new PageA11yData(PageDocument.Location, "Iframe", "", "", "Needs a title", 1));
                     }
                 }
-                if (new Regex("brightcove|byu\\.mediasite|panopto|vimeo|dailymotion|facebook|ambrosevideo|kanopy|alexanderstreet").IsMatch(src))
-                {
+                if (new Regex("brightcove|byu\\.mediasite|panopto|vimeo|dailymotion|facebook|ambrosevideo|kanopy|alexanderstreet", RegexOptions.IgnoreCase).IsMatch(src))
+                {   //If it is a video then need to check if there is a transcript
                     if (!VideoParser.CheckTranscript(iframe))
                     {
                         Data.Add(new PageA11yData(PageDocument.Location, "Transcript", "", $"Video number {iframe_number} on page", "No transcript found", 5));
@@ -731,7 +699,7 @@ namespace ReportGenerators
             }
         }
         private void ProcessBrightcoveVideoHTML()
-        {
+        {   //A lot of our HTMl templates use a div + javascript to insert the brightcove video.
             var brightcove_list = PageDocument.Doc
                 .DocumentNode
                 ?.SelectNodes(@"//div[@id]")
@@ -749,7 +717,7 @@ namespace ReportGenerators
             }
         }
         private void ProcessHeaders()
-        {
+        {   //Process all the headers on the page
             var header_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//h1 | //h2 | //h3 | //h4 | //h5 | //h6");
@@ -767,6 +735,7 @@ namespace ReportGenerators
         }
         private void ProcessSemantics()
         {
+            //Process page semantics (i and b tags).
             var i_or_b_tag_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//i | //b");
@@ -780,7 +749,7 @@ namespace ReportGenerators
             }
         }
         private void ProcessVideoTags()
-        {
+        {   //process any video tags
             var videotag_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//video");
@@ -804,7 +773,7 @@ namespace ReportGenerators
             }
         }
         private void ProcessFlash()
-        {
+        {   //If any flash is found it is automatically marked as inaccessible
             var flash_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//object[contains(@id, \"flash\")]");
@@ -820,7 +789,7 @@ namespace ReportGenerators
 
         }
         private void ProcessColor()
-        {
+        {   //Process any elements that have a color style
             var colored_element_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//*[contains(@style, \"color\")]");
@@ -876,20 +845,20 @@ namespace ReportGenerators
     }
     
     public class MediaParser : RParserBase
-    {
+    {   //Object to parse course pages for media elements (main user of the VideoParser class)
         private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";
         //Class to do a media report
         public MediaParser()
-        {
+        {   //Need to create the ChromeDriver for this class to find video lengths
             var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
             chromeDriverService.HideCommandPromptWindow = true;
             var ChromeOptions = new ChromeOptions();
-            ChromeOptions.AddArguments("headless", "muteaudio");
+            //ChromeOptions.AddArguments("headless", "muteaudio");
             Chrome = new ChromeDriver(chromeDriverService, ChromeOptions);
             Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
         }
         ~MediaParser()
-        {
+        {   //Need to make sure we dispose of the ChromeDriver when this class is disposed
             Chrome.Quit();
         }
         //Gen a media report
@@ -897,9 +866,9 @@ namespace ReportGenerators
         public WebDriverWait Wait { get; set; }
         private bool LoggedIntoBrightcove = false;
         public override void ProcessContent(Dictionary<string, string> page_info)
-        {
+        {   //Main functio to begin process of a page
             if (!LoggedIntoBrightcove)
-            {
+            {   //Need to make sure the ChromeDriver is logged into brightcove
                 string BrightCoveUserName = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyBrightcoveUsername.txt").Replace("\n", "").Replace("\r", "");
                 var posh = PowerShell.Create();
                 posh.AddScript("process{$c = Get-Content \"$HOME\\Desktop\\AccessibilityTools\\ReportGenerators-master\\Passwords\\MyBrightcovePassword.txt\"; $s = $c | ConvertTo-SecureString; Write-Host (New-Object System.Management.Automation.PSCredential -ArgumentList 'asdf', $s).GetNetworkCredential().Password}"
@@ -915,11 +884,12 @@ namespace ReportGenerators
                 LoggedIntoBrightcove = true;
             }
             if (page_info[page_info.Keys.ElementAt(0)] == null)
-            {
+            {   //Just return if there is no page / page is empty
                 return;
             }
+            //Set the current document
             PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
-
+            //Process each of the media elements
             ProcessLinks();
             ProcessIframes();
             ProcessVideoTags();
@@ -935,13 +905,13 @@ namespace ReportGenerators
                 return;
             }
             foreach(var link in link_list)
-            {
+            {   //Make sure there is an href
                 if(link.Attributes["href"] == null)
                 {
                     continue;
                 }
                 if (link.GetClasses().Contains("video_link"))
-                {
+                {   //See if it is an embded canvas video link
                     Data.Add(new PageMediaData(PageDocument.Location,
                                                 "Canvas Video Link",
                                                 "",
@@ -949,35 +919,20 @@ namespace ReportGenerators
                                                 link.Attributes["href"].Value,
                                                 new TimeSpan(0),
                                                 VideoParser.CheckTranscript(link)));
-                }else if(new Regex("youtu\\.?be").IsMatch(link.Attributes["href"].Value)){
-                    var split_href = link.Attributes["href"].Value
-                                                                .Split(new[] { "v=" }, StringSplitOptions.RemoveEmptyEntries)
-                                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                                .LastOrDefault();
-                    string video_id;
-                    if (split_href.Contains("t="))
+                }else if(new Regex("youtu\\.?be", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
+                {   //See if it is a youtube video
+                    var uri = new Uri((link.Attributes["href"].Value));
+                    var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                    var video_id = string.Empty;
+                    if (query.AllKeys.Contains("v"))
                     {
-                        video_id = split_href.Split('?')
-                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                .FirstOrDefault()
-                                                .Split('/')
-                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                .LastOrDefault();
-                    }else if (split_href.Contains("="))
-                    {
-                        video_id = split_href.Split(new[] { "v=" }, StringSplitOptions.RemoveEmptyEntries)
-                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                .LastOrDefault()
-                                                .Split('&')
-                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                .FirstOrDefault();
+                        video_id = query["v"];
                     }
                     else
                     {
-                        video_id = split_href.Split('/')
-                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                .LastOrDefault();
+                        video_id = uri.Segments.LastOrDefault();
                     }
+                    //Get time from video
                     TimeSpan video_length;
                     try
                     {
@@ -995,12 +950,13 @@ namespace ReportGenerators
                     }
                     catch
                     {
+                        //Time is 0 if it failed
                         Console.WriteLine("Video not found");
                         video_length = new TimeSpan(0);
                     }
-                    string video_found;
+                    string video_found = string.Empty;
                     if(video_length == new TimeSpan(0))
-                    {
+                    {   //make sure we apend video not found for the excel doc
                         video_found = "\nVideo not found";
                     }
                     else
@@ -1134,7 +1090,7 @@ namespace ReportGenerators
             }
         }
         private void ProcessIframes()
-        {
+        {   //Process all the iframes for media elements
             var iframe_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//iframe");
@@ -1484,7 +1440,6 @@ namespace ReportGenerators
         }
         private bool TestUrl(string url)
         {
-
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "HEAD";
             request.Proxy = null;
@@ -1539,25 +1494,25 @@ namespace ReportGenerators
                 return;
             }
             Parallel.ForEach(link_list, link =>
-            {
+            {   //Run it in parralell as this takes forever otherwise
                 if(link.Attributes["href"] != null)
                 {
                     if(new Regex("^#").IsMatch(link.Attributes["href"].Value))
                     {
                         //Do nothing
                     }
-                    else if(new Regex("^mailto:").IsMatch(link.Attributes["href"].Value))
+                    else if(new Regex("^mailto:", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                     {
                         //Do nothing
                     }
-                    else if(new Regex("^javascript:").IsMatch(link.Attributes["href"].Value))
+                    else if(new Regex("^javascript:", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                     {
                         Data.Add(new PageData(PageDocument.Location, 
                                                 link.Attributes["href"].Value, 
                                                 "", 
                                                 "JavaScript links are often not accessible \\ broken."));
                     }
-                    else if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$").IsMatch(link.Attributes["href"].Value))
+                    else if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                     {
                         if (!TestUrl(link.Attributes["href"].Value))
                         {
@@ -1590,10 +1545,10 @@ namespace ReportGenerators
                 return;
             }
             Parallel.ForEach(image_list, image => 
-            {
+            {   //This is pretty fast on its own, but why not run it parallel
                 if(image.Attributes["src"] != null)
                 {
-                    if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$").IsMatch(image.Attributes["src"].Value))
+                    if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$", RegexOptions.IgnoreCase).IsMatch(image.Attributes["src"].Value))
                     {
 
                     }
@@ -1612,10 +1567,11 @@ namespace ReportGenerators
         }
     }
     public class CreateExcelReport
-    {
+    {   //Class to take care of creating the report
         public CreateExcelReport(string destination_path)
-        {
+        {   //Need to have the destination for the report input at creation. This is the entire path including file name
             this.Destination = destination_path;
+            //Create the excel object from the template and set helper variables to be used accross functions
             this.Excel = new ExcelPackage(new FileInfo(PathToExcelTemplate));
             this.Cells = Excel.Workbook.Worksheets[1].Cells;
             this.RowNumber = 9;
@@ -1627,7 +1583,7 @@ namespace ReportGenerators
         private int RowNumber;
         
         public void CreateReport(List<PageData> A11yData, List<PageData> MediaData, List<PageData> LinkData)
-        {
+        {   //Public method to create the report from any input (can put null in place of any of the lists if you only need a certain input).
             if (null != A11yData)
             {
                 AddA11yData(A11yData);
@@ -1640,11 +1596,13 @@ namespace ReportGenerators
             {
                 AddLinkData(LinkData);
             }
+            //Need to make sure the destination directory exists
             var test_path = new DirectoryInfo(Path.GetDirectoryName(Destination));
             if (!(test_path.Exists))
             {
                 test_path.Create();
             }
+            //Get a dynamicly named report just in case one of the same name already exists
             var i = 1;
             while(new FileInfo(Destination).Exists)
             {
@@ -1655,11 +1613,13 @@ namespace ReportGenerators
                 }
                 i++;
             }
+            //Save and dispose
             Excel.SaveAs(new FileInfo(Destination));
             Excel.Dispose();
         }
         private void AddA11yData(List<PageData> data_list)
-        {
+        {   //This is the most complicated one to add to the excel document and so uses the helper function
+            //All of the string inputs are from the excel document validation and should possibly be made dynamic as if they don't match it will throw an error.
             RowNumber = 9;
             Cells = Excel.Workbook.Worksheets[1].Cells;
             foreach(var data in data_list)
@@ -1716,7 +1676,7 @@ namespace ReportGenerators
             }
         }
         private void A11yAddToCell(string issue_type, string descriptive_error, string notes, int severity = 1, int occurence = 1, int detection = 1)
-        {
+        {   //Helper function to insert data
             Cells[RowNumber, 4].Value = issue_type;
             Cells[RowNumber, 5].Value = descriptive_error;
             Cells[RowNumber, 6].Value = notes;
@@ -1726,9 +1686,7 @@ namespace ReportGenerators
         }
         private void AddMediaData(List<PageData> data_list)
         {
-            //I may need to do a replace on the media item url, 
-            //#Sometimes there are extra slashes at the beginning
-            //$url = $url - replace "^//", "https://"
+            //Insert all of the media data
             RowNumber = 4;
             Cells = Excel.Workbook.Worksheets[2].Cells;
             Excel.Workbook.Worksheets[2].Column(4).Style.Numberformat.Format = "#############";
@@ -1739,9 +1697,9 @@ namespace ReportGenerators
             {
                 Cells[RowNumber, 2].Value = data.Element;
                 Cells[RowNumber, 3].Value = data.Location.CleanSplit("/").LastOrDefault().CleanSplit("\\").LastOrDefault();
-                Cells[RowNumber, 3].Hyperlink = new System.Uri(data.Location);
-                if((from cell in Cells["D:D"] where cell.Value?.ToString() == data.Id select true).Count(c => c == true) > 0)
-                {
+                Cells[RowNumber, 3].Hyperlink = new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));
+                if ((from cell in Cells["D:D"] where cell.Value?.ToString() == data.Id select true).Count(c => c == true) > 0)
+                {   //Need to check for duplicate videos so they can be marked and not have the time double up in the total
                     Cells[RowNumber, 4].Value = "Duplicate Video:\n" + data.Id;
                 }
                 else
@@ -1758,16 +1716,16 @@ namespace ReportGenerators
         }
         
         private void AddLinkData(List<PageData> data_list)
-        {
+        {   //Add all of the link data
             Cells = Excel.Workbook.Worksheets[3].Cells;
             RowNumber = 4;
             foreach (var data in data_list)
             {
                 Cells[RowNumber, 2].Value = data.Location.CleanSplit("/").LastOrDefault().CleanSplit("\\").LastOrDefault();
-                Cells[RowNumber, 2].Hyperlink = new System.Uri(data.Location);
+                Cells[RowNumber, 2].Hyperlink = new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));
                 Cells[RowNumber, 3].Value = data.Element;
                 if (data.Element.Contains("http"))
-                {
+                {   //If it is a link make it a hyperlink so it can be clicked easier.
                     Cells[RowNumber, 3].Hyperlink = new System.Uri(data.Element);
                 }
                 Cells[RowNumber, 4].Value = data.Text;
@@ -1780,6 +1738,7 @@ namespace ReportGenerators
         //This is where the program will start and take user input / run the reports, may or may not be needed based on how I can get the SpecFlow test to work.
         public static void Main()
         {
+            //Basic tests, we use the classes mostly in the A11yPanel project.
             CourseInfo course = new CourseInfo(@"I:\Canvas\FOODS-043\FOODS-043-S003\HTML");
             LinkParser parser = new LinkParser(course.CourseIdOrPath);
             foreach(var page in course.PageHtmlList)
