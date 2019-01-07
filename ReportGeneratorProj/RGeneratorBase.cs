@@ -134,7 +134,7 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                length = wait.UntilElementIsVisible("div[class*=\"runtime\"]").Text;
+                length = wait.UntilElementIsVisible(By.CssSelector("div[class*=\"runtime\"]")).Text;
             }
             catch
             {
@@ -156,7 +156,7 @@ namespace ReportGenerators
             {
                 while("0:00" == length || "" == length || null == length)
                 {
-                    length = wait.UntilElementIsVisible("span[class*=\"duration\"]").Text;
+                    length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;
                 }
             }
             catch
@@ -180,9 +180,9 @@ namespace ReportGenerators
             try
             {
                 while (chrome.FindElementsByCssSelector("[id=copyrightNoticeContainer]").FirstOrDefault().Displayed) { };
-                wait.UntilElementIsVisible("div[aria-label=\"Play\"]").Click();
+                wait.UntilElementIsVisible(By.CssSelector("div[aria-label=\"Play\"]")).Click();
 
-                length = wait.UntilElementIsVisible("span[class*=\"duration\"]").Text;
+                length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;
             }
             catch
             {
@@ -202,7 +202,7 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                length = wait.UntilElementIsVisible("span.fulltime").Text;
+                length = wait.UntilElementIsVisible(By.CssSelector("span.fulltime")).Text;
             }
             catch
             {
@@ -222,7 +222,7 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                length = wait.UntilElementIsVisible("span.fulltime").Text;
+                length = wait.UntilElementIsVisible(By.CssSelector("span.fulltime")).Text;
             }
             catch
             {
@@ -242,8 +242,8 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                wait.UntilElementIsVisible("button.vjs-big-play-button").Click();
-                length = wait.UntilElementIsVisible("div.vjs-remaining-time-display")
+                wait.UntilElementIsVisible(By.CssSelector("button.vjs-big-play-button")).Click();
+                length = wait.UntilElementIsVisible(By.CssSelector("div.vjs-remaining-time-display"))
                                 .Text
                                 .Split('-')
                                 .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
@@ -267,8 +267,8 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                wait.UntilElementIsVisible("button.vjs-big-play-button").Click();
-                length = wait.UntilElementIsVisible("div.vjs-remaining-time-display")
+                wait.UntilElementIsVisible(By.CssSelector("button.vjs-big-play-button")).Click();
+                length = wait.UntilElementIsVisible(By.CssSelector("div.vjs-remaining-time-display"))
                                 .Text
                                 .Split('-')
                                 .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
@@ -314,8 +314,8 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                wait.UntilElementIsVisible("img").Click();
-                length = wait.UntilElementIsVisible("div[playbackdurationtimestamp]").Text.Replace('-', '0');
+                wait.UntilElementIsVisible(By.CssSelector("img")).Click();
+                length = wait.UntilElementIsVisible(By.CssSelector("div[playbackdurationtimestamp]")).Text.Replace('-', '0');
             }
             catch
             {
@@ -323,8 +323,8 @@ namespace ReportGenerators
                 {
                     //If that didn't work then try refreshing the page (I kept running into false negatives) and try again
                     chrome.Navigate().Refresh();
-                    wait.UntilElementIsVisible("img").Click();
-                    length = wait.UntilElementIsVisible("div[playbackdurationtimestamp]").Text.Replace('-', '0');
+                    wait.UntilElementIsVisible(By.CssSelector("img")).Click();
+                    length = wait.UntilElementIsVisible(By.CssSelector("div[playbackdurationtimestamp]")).Text.Replace('-', '0');
                 }
                 catch
                 {
@@ -345,8 +345,8 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                wait.UntilElementIsVisible("button[aria-label*=\"Playback\"]").Click();
-                length = wait.UntilElementIsVisible("span[aria-label*=\"Duration\"]").Text;
+                wait.UntilElementIsVisible(By.CssSelector("button[aria-label*=\"Playback\"]")).Click();
+                length = wait.UntilElementIsVisible(By.CssSelector("span[aria-label*=\"Duration\"]")).Text;
             }
             catch
             {
@@ -366,7 +366,7 @@ namespace ReportGenerators
             dynamic length;
             try
             {
-                length = wait.UntilElementIsVisible("div.timecode").Text;
+                length = wait.UntilElementIsVisible(By.CssSelector("div.timecode")).Text;
             }
             catch
             {
@@ -877,9 +877,9 @@ namespace ReportGenerators
                 var password = posh.Streams.Information[0].ToString();
 
                 Chrome.Url = "https://signin.brightcove.com/login?redirect=https%3A%2F%2Fstudio.brightcove.com%2Fproducts%2Fvideocloud%2Fmedia";
-                Wait.UntilElementIsVisible("input[name*=\"email\"]").SendKeys(BrightCoveUserName);
-                Wait.UntilElementIsVisible("input[id*=\"password\"]").SendKeys(password);
-                Wait.UntilElementIsVisible("button[id*=\"signin\"]").Submit();
+                Wait.UntilElementIsVisible(By.CssSelector("input[name*=\"email\"]")).SendKeys(BrightCoveUserName);
+                Wait.UntilElementIsVisible(By.CssSelector("input[id*=\"password\"]")).SendKeys(password);
+                Wait.UntilElementIsVisible(By.CssSelector("button[id*=\"signin\"]")).Submit();
 
                 LoggedIntoBrightcove = true;
             }
@@ -1065,7 +1065,7 @@ namespace ReportGenerators
                 else if (link.Attributes["href"].Value.Contains("bcove"))
                 {
                     Chrome.Url = link.Attributes["href"].Value;
-                    Wait.UntilElementIsVisible("iframe");
+                    Wait.UntilElementIsVisible(By.CssSelector("iframe"));
                     string video_id = Chrome.Url.Split('=')
                                                 .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                 .LastOrDefault();
@@ -1738,15 +1738,22 @@ namespace ReportGenerators
         //This is where the program will start and take user input / run the reports, may or may not be needed based on how I can get the SpecFlow test to work.
         public static void Main()
         {
-            //Basic tests, we use the classes mostly in the A11yPanel project.
-            CourseInfo course = new CourseInfo(@"I:\Canvas\FOODS-043\FOODS-043-S003\HTML");
-            LinkParser parser = new LinkParser(course.CourseIdOrPath);
-            foreach(var page in course.PageHtmlList)
+            var TokenInfo = "7407~1R0EdqNU6ywS9hleF7n7xRHkhtkSlD3lqnOOQcUGOhHgTbjGOKRYh4jAG86CEVLH";
+            var BaseUrlInfo = "https://byu.instructure.com";
+
+            using (var posh = PowerShell.Create())
             {
-                parser.ProcessContent(page);
+                posh.AddScript(@"param($t, $b, $p)
+                                    $ApiInfo = [ordered]@{
+                                        Token = $t
+                                        BaseUri = $b
+                                    }
+                                    $ApiInfo | ConvertTo-Json | Out-File -FilePath $p")
+                                    .AddArgument(TokenInfo)
+                                    .AddArgument(BaseUrlInfo)
+                                    .AddArgument(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\BYU2_CanvasApiCreds.json")
+                                    .Invoke();
             }
-            CreateExcelReport GenReport = new CreateExcelReport(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\AccessibilityTools\\ReportGenerators-master\\Reports\\ARC_{course.CourseCode}_{CanvasApi.CurrentDomain}.xlsx");
-            GenReport.CreateReport(null, null, parser.Data);
         }
     }
 }

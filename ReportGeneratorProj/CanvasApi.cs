@@ -104,15 +104,18 @@ namespace ReportGenerators
             {
                 case "BYU Online": //BYU
                     File.Copy((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\BYU_CanvasApiCreds.json"), 
-                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), true);
+                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), 
+                        true);
                     break;
                 case "BYU IS Test": //test
                     File.Copy((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\TEST_CanvasApiCreds.json"),
-                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), true);
+                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), 
+                        true);
                     break;
                 case "BYU Master Courses":
                     File.Copy((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\MASTER_CanvasApiCreds.json"),
-                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), true);
+                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), 
+                        true);
                     break;
                 case "Directory":
                     //Directory, nothing should be needed

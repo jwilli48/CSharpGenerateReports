@@ -10,14 +10,14 @@ namespace SeleniumExtentions
 {
     public static class SeleniumExtentions
     {   //Class to contain any extenstions to selenium
-        public static IWebElement UntilElementIsVisible(this WebDriverWait wait, string locator)
+        public static IWebElement UntilElementIsVisible(this WebDriverWait wait, By locator)
         {   //Replace constantly used code that I was writing
             //Waits until the specified element is displayed or times out
             return wait.Until(c =>
             {
                 try
                 {
-                    var el = c.FindElement(By.CssSelector(locator));
+                    var el = c.FindElement(locator);
                     if (el.Displayed)
                     {
                         return el;
@@ -26,6 +26,22 @@ namespace SeleniumExtentions
                     {
                         return null;
                     }
+                }
+                catch
+                {
+                    return null;
+                }
+            });
+        }
+
+        public static IWebElement UntilElementExist(this WebDriverWait wait, By locator)
+        {
+            return wait.Until(c =>
+            {
+                try
+                {
+                    var el = c.FindElement(locator);
+                    return el;
                 }
                 catch
                 {
