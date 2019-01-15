@@ -49,5 +49,27 @@ namespace SeleniumExtentions
                 }
             });
         }
+
+        public static IWebElement ReturnClick(this IWebElement element)
+        {
+            element.Click();
+            return element;
+        }
+
+        public static IWebElement ForChildElement(this WebDriverWait wait, IWebElement element, By locator)
+        {
+            return wait.Until(c =>
+            {
+                try
+                {
+                    var el = element.FindElement(locator);
+                    return el;
+                }
+                catch
+                {
+                    return null;
+                }
+            });
+        }
     }
 }

@@ -20,12 +20,12 @@ using System.Management.Automation;
 
 namespace ReportGenerators
 {
-    
+
     public static class StringExtentions
     {   //Helpful string extension methods
         public static string[] CleanSplit(this string ToSplit, string seperator)
         {   //Splits a string and gets rid of any empty, null or whitespace only items.
-            if(ToSplit == null)
+            if (ToSplit == null)
             {
                 return null;
             }
@@ -57,14 +57,14 @@ namespace ReportGenerators
     {   //Object stored in the ReportParser objects that turns the html string from the CourseInfo object into a live HTML dom to be used by the parsers.
         public DataToParse(string location, string page_body)
         {
-            this.Location = location;
+            Location = location;
             Doc = new HtmlDocument();
             Doc.LoadHtml(page_body);
         }
         public string Location;
         public HtmlDocument Doc;
     }
-   
+
     public class YoutubeData
     {   //Class to get data from the Google API
         //Needs the item object first that then contains the info
@@ -89,6 +89,7 @@ namespace ReportGenerators
         private static string GoogleApi = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyGoogleApi.txt").Replace("\r\n", "");
         public static bool CheckTranscript(HtmlNode element)
         {   //Checks if the input element has a transcript in the next 3 elements after it.
+            //May need to touch up these checkes. Make loops to find the parent node that is just below the "body" of the file / document and then serach until the next iframe and see if there is a transcript keyword
             if (element.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
                 || element.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
                 || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
@@ -121,14 +122,14 @@ namespace ReportGenerators
         //They all return a timespan object with the length of the video. 
         //It will return a timespan of 0 if the length could not be found.
         public static TimeSpan GetYoutubeVideoLength(string video_id)
-        {   
+        {
             string url = $"https://www.googleapis.com/youtube/v3/videos?id={video_id}&key={GoogleApi}&part=contentDetails";
             var restClient = new RestClient(url);
             var request = new RestRequest(Method.GET);
             var response = restClient.Execute<YoutubeData>(request);
             return XmlConvert.ToTimeSpan(response.Data.items[0].contentDetails.duration);
         }
-        public static TimeSpan GetBrightcoveVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetBrightcoveVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://studio.brightcove.com/products/videocloud/media/videos/search/{video_id}";
             dynamic length;
@@ -142,6 +143,8 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            chrome.FindElementsByCssSelector("div.name").Where(c => c.Text.Contains(video_id)).FirstOrDefault().FindElement(By.TagName("a")).Click();
+            cc = !wait.UntilElementExist(By.CssSelector("section#textTracksPanel")).Text.Contains("There are no text tracks");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
@@ -154,7 +157,7 @@ namespace ReportGenerators
             dynamic length = null;
             try
             {
-                while("0:00" == length || "" == length || null == length)
+                while ("0:00" == length || "" == length || null == length)
                 {
                     length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;
                 }
@@ -171,15 +174,15 @@ namespace ReportGenerators
             }
             return video_length;
         }
-        public static TimeSpan GetPanoptoVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetPanoptoVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://byu.hosted.panopto.com/Panopto/Pages/Embed.aspx?id={video_id}&amp;v=1";
             while ((string)chrome.ExecuteScript("return document.readyState") != "complete") { };
-            while((int)chrome.ExecuteScript("return jQuery.active") != 0) { };
             dynamic length = null;
             try
             {
                 while (chrome.FindElementsByCssSelector("[id=copyrightNoticeContainer]").FirstOrDefault().Displayed) { };
+                wait.UntilElementIsVisible(By.CssSelector("div#title"));
                 wait.UntilElementIsVisible(By.CssSelector("div[aria-label=\"Play\"]")).Click();
 
                 length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;
@@ -190,15 +193,16 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            cc = !wait.UntilElementExist(By.CssSelector("div.fp-menu.fp-subtitle-menu")).GetAttribute("outerHTML").ToLower().Contains("no subtitles");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
             }
             return video_length;
         }
-        public static TimeSpan GetAlexanderStreetVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetAlexanderStreetVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
-            chrome.Url = $"https://search.alexanderstreet.com/embed/token/{video_id}";
+            chrome.Url = $"https://search.alexanderstreet.com/view/work/bibliographic_entity|video_work|{video_id}";
             dynamic length;
             try
             {
@@ -210,15 +214,16 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            cc = wait.UntilElementIsVisible(By.CssSelector("ul.tabs")).Text.ToLower().Contains("transcript");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
             }
             return video_length;
         }
-        public static TimeSpan GetAlexanderStreenLinkLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetAlexanderStreenLinkLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
-            chrome.Url = $"https://lib.byu.edu/remoteauth/?url=https://search.alexanderstreet.com/view/work/bibliographic_entity|video_work|{video_id}";
+            chrome.Url = $"https://search.alexanderstreet.com/view/work/bibliographic_entity|video_work|{video_id}";
             dynamic length;
             try
             {
@@ -230,13 +235,14 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            cc = wait.UntilElementIsVisible(By.CssSelector("ul.tabs")).Text.ToLower().Contains("transcript");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
             }
             return video_length;
         }
-        public static TimeSpan GetKanopyVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetKanopyVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://byu.kanopy.com/embed/{video_id}";
             dynamic length;
@@ -255,13 +261,14 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            cc = wait.UntilElementIsVisible(By.CssSelector("span[data-title='Press play to launch the captions")).Displayed;
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
             }
             return video_length;
         }
-        public static TimeSpan GetKanopyLinkLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetKanopyLinkLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://byu.kanopy.com/video/{video_id}";
             dynamic length;
@@ -280,6 +287,7 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            cc = wait.UntilElementIsVisible(By.CssSelector("span[data-title='Press play to launch the captions")).Displayed;
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
@@ -386,7 +394,6 @@ namespace ReportGenerators
         //Base class for each of the reports
         public RParserBase() { }
         public List<PageData> Data { get; set; } = new List<PageData>();
-        public DataToParse PageDocument;
         public abstract void ProcessContent(Dictionary<string, string> page_info);
 
     }
@@ -417,132 +424,176 @@ namespace ReportGenerators
         {
             //Function to begin processing a page and storing the data within the Data list (see RParserBase class)
             //Make sure page is not empty
-            if(page_info[page_info.Keys.ElementAt(0)] == null){
+            if (page_info[page_info.Keys.ElementAt(0)] == null)
+            {
                 return;
             }
             //Set our current document (creates an HTML dom from the pages body)
-            PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
+            var PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
             //Process the elements of the page
-            ProcessLinks();
-            ProcessImages();
-            ProcessIframes();
-            ProcessTables();
-            ProcessBrightcoveVideoHTML();
-            ProcessHeaders();
-            ProcessSemantics();
-            ProcessVideoTags();
-            ProcessFlash();
-            ProcessColor();
+            ProcessLinks(PageDocument);
+            ProcessImages(PageDocument);
+            ProcessIframes(PageDocument);
+            ProcessTables(PageDocument);
+            ProcessBrightcoveVideoHTML(PageDocument);
+            ProcessHeaders(PageDocument);
+            ProcessSemantics(PageDocument);
+            ProcessVideoTags(PageDocument);
+            ProcessFlash(PageDocument);
+            ProcessColor(PageDocument);
+            ProcessMathJax(PageDocument);
         }
-        private void ProcessLinks()
+        private void ProcessLinks(DataToParse PageDocument)
         {
             //Get all links within page
             var link_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//a");
             //Make sure its not null
-            if(link_list == null)
+            if (link_list == null)
             {
                 return;
             }
             //Loop through all links
-            foreach(var link in link_list)
+            foreach (var link in link_list)
             {
-                
-                if(link.Attributes["onclick"] != null)
+
+                if (link.Attributes["onclick"] != null)
                 {   //Onclick links are not accessible
-                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "JavaScript links are not accessible", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "JavaScript links are not accessible", 1));
+                    }
                 }
-                else if(link.Attributes["href"] == null)
+                else if (link.Attributes["href"] == null)
                 {   //Links should have an href
-                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "Empty link tag", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "Empty link tag", 1));
+                    }
                 }
                 if (link.InnerHtml.Contains("<img"))
                 {   //If it is an image ignore it for now, need to check alt text
                     continue;
                 }
-                if(link.InnerText == null)
+                if (link.InnerText == null)
                 {   //See if it is a link without text
-                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", "Invisible link with no text", "Adjust Link Text", 1));
-                }else if(new Regex("^ ?here", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", "Invisible link with no text", "Adjust Link Text", 1));
+                    }
+                }
+                else if (new Regex("^ ?here", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
                 {   //If it begins with the word here probably not descriptive link text
-                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
-                }else if(new Regex("^ ?[A-Za-z\\.]+ ?$").IsMatch(link.InnerText))
-                {   //If it is a single word
-                    if(link_list.Where(s => s.InnerText == link.InnerText).Count() > 1)
-                    {   //And if the single word is used for more then one link
+                    lock (Data)
+                    {
                         Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
                     }
-                }else if(new Regex("http|www\\.|Link|Click", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
+                }
+                else if (new Regex("^ ?[A-Za-z\\.]+ ?$").IsMatch(link.InnerText))
+                {   //If it is a single word
+                    if (link_list.Where(s => s.InnerText == link.InnerText).Count() > 1)
+                    {   //And if the single word is used for more then one link
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
+                        }
+                    }
+                }
+                else if (new Regex("http|www\\.|Link|Click", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
                 {   //See if it is just a url
-                    if(new Regex("Links to an external site").IsMatch(link.InnerText))
+                    if (new Regex("Links to an external site").IsMatch(link.InnerText))
                     {   //This is commonly used in Canvas, we just ignore it
                         continue;
                     }
-                    Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1));
+                    }
                 }
             }
         }
-        private void ProcessImages()
+        private void ProcessImages(DataToParse PageDocument)
         {
             //Get list of images
             var image_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//img");
             //Make sure it is not null
-            if(image_list == null)
+            if (image_list == null)
             {
                 return;
             }
             //Loop through all images
-            foreach(var image in image_list)
+            foreach (var image in image_list)
             {
                 var alt = image.Attributes["alt"]?.Value;
                 //Get the alt text
                 if (alt == null)
                 {   //Images should have alt tags, even if it is empty
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", image.OuterHtml, "No alt attribute", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", image.OuterHtml, "No alt attribute", 1));
+                    }
                 }
                 else if (new Regex("banner", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Banners shouldn't have alt text
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    }
                 }
                 else if (new Regex("Placeholder", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Placeholder probably means the alt text was forgotten to be changed
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    }
                 }
                 else if (new Regex("\\.jpg", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Make sure it is not just the images file name
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    }
                 }
-                else if(new Regex("\\.png", RegexOptions.IgnoreCase).IsMatch(alt))
+                else if (new Regex("\\.png", RegexOptions.IgnoreCase).IsMatch(alt))
                 {
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    }
                 }
-                else if(new Regex("http", RegexOptions.IgnoreCase).IsMatch(alt))
+                else if (new Regex("http", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //It should not be a url
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    }
                 }
-                else if(new Regex("LaTeX:", RegexOptions.IgnoreCase).IsMatch(alt))
+                else if (new Regex("LaTeX:", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Should not be latex (ran into this a couple of times)
-                    Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1));
+                    }
                 }
             }
         }
-        private void ProcessTables()
+        private void ProcessTables(DataToParse PageDocument)
         {
             //Get all tables
             var table_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//table");
             //Make sure it isn't null
-            if(table_list == null)
+            if (table_list == null)
             {
                 return;
             }
             //Count the tables so we can know which table on the page has the issues
             var table_num = 1;
-            foreach(var table in table_list)
+            foreach (var table in table_list)
             {
                 //Get list of headers, data cells, how many rows, and any stretched cells
                 var table_headers = table.SelectNodes(".//th");
@@ -552,61 +603,64 @@ namespace ReportGenerators
                 //Init the issue string
                 string issues = "";
                 //See if there are any stretchedcells
-                if(stretched_cells != null)
+                if (stretched_cells != null)
                 {
                     issues += "\nStretched table cell(s) should be a <caption> title for the table";
                 }
                 //See how many rows there are, if there is 3 or more and there are no headers then flag it as needing headers
-                
+
                 var num_rows = table_rows?.Count() == null ? 0 : table_rows.Count();
-                if(num_rows >= 3)
+                if (num_rows >= 3)
                 {
-                    if(table_headers == null)
+                    if (table_headers == null)
                     {
                         issues += "\nTable has no headers";
                     }
                 }
                 //See how many headers have scopes, should be the same number as the number of headers
                 var scope_headers = table_headers?.Count(c => c.Attributes["scope"] != null);
-                if(scope_headers == null || scope_headers != table_headers.Count())
+                if (scope_headers == null || scope_headers != table_headers.Count())
                 {
                     issues += "\nTable headers should have a scope attribute";
                 }
                 //See if any data cells have scopes when they should not
                 var scope_cells = table_data_cells?.Count(c => c.Attributes["scope"] != null);
-                if(scope_cells != null && scope_cells > 0)
+                if (scope_cells != null && scope_cells > 0)
                 {
                     issues += "\nNon-header table cells should not have scope attributes";
                 }
                 //If any issues were found then add it to the list
-                if(issues != null && issues != "")
+                if (issues != null && issues != "")
                 {
-                    Data.Add(new PageA11yData(PageDocument.Location, "Table", "", $"Table number {table_num}:{issues}", "Revise table", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Table", "", $"Table number {table_num}:{issues}", "Revise table", 1));
+                    }
                 }
                 table_num++;
             }
         }
-        private void ProcessIframes()
+        private void ProcessIframes(DataToParse PageDocument)
         {
             //Get list of iframes
             var iframe_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//iframe");
             //Make sure its not null
-            if(iframe_list == null)
+            if (iframe_list == null)
             {
                 return;
             }
             //Keep track of what iframe we are on
             var iframe_number = 1;
-            foreach(var iframe in iframe_list)
+            foreach (var iframe in iframe_list)
             {
                 //Get the source attribute, every iframe should have one
                 var src = iframe.Attributes["src"].Value;
                 if (iframe.Attributes["title"] == null)
                 {
                     //Only real accessiblity issue we can check is if it has a title or not
-                    if(new Regex("youtube", RegexOptions.IgnoreCase).IsMatch(src))
+                    if (new Regex("youtube", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         //Get the youtube information
                         var uri = new Uri(src);
@@ -620,8 +674,12 @@ namespace ReportGenerators
                         {
                             videoId = uri.Segments.LastOrDefault();
                         }
-                        Data.Add(new PageA11yData(PageDocument.Location, "Youtube Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("brightcove", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Youtube Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("brightcove", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         //Get brightcove info
                         var videoId = src.CleanSplit("=").LastOrDefault().CleanSplit("&").FirstOrDefault();
@@ -629,32 +687,55 @@ namespace ReportGenerators
                         {   //Make sure it has the https on it
                             src = $"https:{src}";
                         }
-                        Data.Add(new PageA11yData(PageDocument.Location, "Brightcove Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("H5P", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Brightcove Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("H5P", RegexOptions.IgnoreCase).IsMatch(src))
                     {   //H5P can just be added
-                        Data.Add(new PageA11yData(PageDocument.Location, "H5P", "", "", "Needs a title", 1));
-                    }else if(new Regex("byu\\.mediasite", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "H5P", "", "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("byu\\.mediasite", RegexOptions.IgnoreCase).IsMatch(src))
                     {   //Get id
                         var videoId = src.CleanSplit("/").LastOrDefault();
-                        Data.Add(new PageA11yData(PageDocument.Location, "BYU Mediasite Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("panopto", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "BYU Mediasite Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("panopto", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.CleanSplit('=').LastOrDefault().CleanSplit('&').ElementAtOrDefault(1);
-                        Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("alexanderstreet", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("alexanderstreet", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split(new string[] { "token/" }, StringSplitOptions.RemoveEmptyEntries)
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .LastOrDefault();
-                        Data.Add(new PageA11yData(PageDocument.Location, "AlexanderStreen Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("kanopy", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "AlexanderStreen Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("kanopy", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split(new string[] { "embed/" }, StringSplitOptions.RemoveEmptyEntries)
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .LastOrDefault();
-                        Data.Add(new PageA11yData(PageDocument.Location, "Kanopy Video", videoId, "", "Needs a title", 1));
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Kanopy Video", videoId, "", "Needs a title", 1));
+                        }
                     }
-                    else if(new Regex("ambrosevideo", RegexOptions.IgnoreCase).IsMatch(src))
+                    else if (new Regex("ambrosevideo", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split('?')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
@@ -662,18 +743,30 @@ namespace ReportGenerators
                                             .Split('&')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .FirstOrDefault();
-                        Data.Add(new PageA11yData(PageDocument.Location, "Ambrose Video", videoId, "", "NEeds a title", 1));
-                    }else if(new Regex("facebook", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Ambrose Video", videoId, "", "NEeds a title", 1));
+                        }
+                    }
+                    else if (new Regex("facebook", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = new Regex("\\d{17}").Match(src).Value;
-                        Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("dailymotion", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("dailymotion", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split('/')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .LastOrDefault();
-                        Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
-                    }else if(new Regex("vimeo", RegexOptions.IgnoreCase).IsMatch(src))
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1));
+                        }
+                    }
+                    else if (new Regex("vimeo", RegexOptions.IgnoreCase).IsMatch(src))
                     {
                         var videoId = src.Split('/')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
@@ -681,30 +774,39 @@ namespace ReportGenerators
                                             .Split('?')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .FirstOrDefault();
-                        Data.Add(new PageA11yData(PageDocument.Location, "Vimeo Video", videoId, "", "Needs a title", 1));
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Vimeo Video", videoId, "", "Needs a title", 1));
+                        }
                     }
                     else
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Iframe", "", "", "Needs a title", 1));
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Iframe", "", "", "Needs a title", 1));
+                        }
                     }
                 }
                 if (new Regex("brightcove|byu\\.mediasite|panopto|vimeo|dailymotion|facebook|ambrosevideo|kanopy|alexanderstreet", RegexOptions.IgnoreCase).IsMatch(src))
                 {   //If it is a video then need to check if there is a transcript
                     if (!VideoParser.CheckTranscript(iframe))
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Transcript", "", $"Video number {iframe_number} on page", "No transcript found", 5));
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location, "Transcript", "", $"Video number {iframe_number} on page", "No transcript found", 5));
+                        }
                     }
                 }
                 iframe_number++;
             }
         }
-        private void ProcessBrightcoveVideoHTML()
+        private void ProcessBrightcoveVideoHTML(DataToParse PageDocument)
         {   //A lot of our HTMl templates use a div + javascript to insert the brightcove video.
             var brightcove_list = PageDocument.Doc
                 .DocumentNode
                 ?.SelectNodes(@"//div[@id]")
                 ?.Where(e => new Regex("\\d{13}").IsMatch(e.Id));
-            if(brightcove_list == null)
+            if (brightcove_list == null)
             {
                 return;
             }
@@ -712,52 +814,62 @@ namespace ReportGenerators
             {
                 if (!VideoParser.CheckTranscript(video))
                 {
-                    Data.Add(new PageA11yData(PageDocument.Location, "Transcript", video.Attributes["id"].Value, $"No transcript found for BrightCove video with id:\n{video.Attributes["id"].Value}", "No transcript found", 5));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Transcript", video.Attributes["id"].Value, $"No transcript found for BrightCove video with id:\n{video.Attributes["id"].Value}", "No transcript found", 5));
+                    }
                 }
             }
         }
-        private void ProcessHeaders()
+        private void ProcessHeaders(DataToParse PageDocument)
         {   //Process all the headers on the page
             var header_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//h1 | //h2 | //h3 | //h4 | //h5 | //h6");
-            if(header_list == null)
+            if (header_list == null)
             {
                 return;
             }
-            foreach(var header in header_list)
+            foreach (var header in header_list)
             {
                 if (header.Attributes["class"]?.Value?.Contains("screenreader-only") == true)
                 {
-                    Data.Add(new PageA11yData(PageDocument.Location, "Header", "", header.OuterHtml, "Check if header is meant to be invisible", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Header", "", header.OuterHtml, "Check if header is meant to be invisible", 1));
+                    }
                 }
             }
         }
-        private void ProcessSemantics()
+        private void ProcessSemantics(DataToParse PageDocument)
         {
             //Process page semantics (i and b tags).
             var i_or_b_tag_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//i | //b");
-            if(i_or_b_tag_list == null)
+            if (i_or_b_tag_list == null)
             {
                 return;
-            }else if(i_or_b_tag_list.Count() > 0)
+            }
+            else if (i_or_b_tag_list.Count() > 0)
             {
                 //Flag if any i or b tags are found
-                Data.Add(new PageA11yData(PageDocument.Location, "<i> or <b> tags", "", "Page contains <i> or <b> tags", "<i>/<b> tags should be <em>/<strong> tags", 1));
+                lock (Data)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "<i> or <b> tags", "", "Page contains <i> or <b> tags", "<i>/<b> tags should be <em>/<strong> tags", 1));
+                }
             }
         }
-        private void ProcessVideoTags()
+        private void ProcessVideoTags(DataToParse PageDocument)
         {   //process any video tags
             var videotag_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//video");
-            if(videotag_list == null)
+            if (videotag_list == null)
             {
                 return;
             }
-            foreach(var videotag in videotag_list)
+            foreach (var videotag in videotag_list)
             {
                 var src = videotag.Attributes["src"].Value;
                 var videoId = src.Split('=')
@@ -768,47 +880,52 @@ namespace ReportGenerators
                                     .FirstOrDefault();
                 if (!VideoParser.CheckTranscript(videotag))
                 {
-                    Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videoId, "Inline Media Video\n", "No transcript found", 5));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videoId, "Inline Media Video\n", "No transcript found", 5));
+                    }
                 }
             }
         }
-        private void ProcessFlash()
+        private void ProcessFlash(DataToParse PageDocument)
         {   //If any flash is found it is automatically marked as inaccessible
             var flash_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//object[contains(@id, \"flash\")]");
-            if(flash_list == null)
+            if (flash_list == null)
             {
                 return;
             }
-            else if(flash_list.Count() > 0)
+            else if (flash_list.Count() > 0)
             {
                 //Flash shouldn't be used anywhere
-                Data.Add(new PageA11yData(PageDocument.Location, "Flash Element", "", $"{flash_list.Count()} embedded flash element(s) on this page", "Flash is inaccessible", 5));
+                lock (Data)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location, "Flash Element", "", $"{flash_list.Count()} embedded flash element(s) on this page", "Flash is inaccessible", 5));
+                }
             }
 
         }
-        private void ProcessColor()
+        private void ProcessColor(DataToParse PageDocument)
         {   //Process any elements that have a color style
             var colored_element_list = PageDocument.Doc
                 .DocumentNode
                 .SelectNodes("//*[contains(@style, \"color\")]");
-            if(colored_element_list == null)
+            if (colored_element_list == null)
             {
                 return;
             }
-            foreach(var color in colored_element_list)
+            foreach (var color in colored_element_list)
             {
-
                 System.Web.UI.CssStyleCollection style = new System.Web.UI.WebControls.Panel().Style;
                 style.Value = color.Attributes["style"].Value;
                 var background_color = style["background-color"];
-                if(background_color == null)
+                if (background_color == null)
                 {   //Default background color is white
                     background_color = "#FFFFFF";
                 }
                 var foreground_color = style["color"];
-                if(foreground_color == null)
+                if (foreground_color == null)
                 {   //Default text color is black
                     foreground_color = "#000000";
                 }
@@ -832,18 +949,56 @@ namespace ReportGenerators
                 var response = restClient.Execute<ColorContrast>(request).Data;
                 var text = string.Empty;
                 //See if we can get the inner text so we can identify the element if there was an issue found
-                if(color.InnerText != null)
+                if (color.InnerText != null)
                 {
                     text = "\"" + HttpUtility.HtmlDecode(color.InnerText) + "\"\n";
                 }
-                if(response.AA != "pass")
+                if (response.AA != "pass")
                 {   //Add it if it doesn't pass AA standards
-                    Data.Add(new PageA11yData(PageDocument.Location, "Color Contrast", "", $"{text}Color: {foreground_color}\nBackgroundColor: {background_color}\n{response.ToString()}", "Does not meet AA color contrast", 1));
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Color Contrast", "", $"{text}Color: {foreground_color}\nBackgroundColor: {background_color}\n{response.ToString()}", "Does not meet AA color contrast", 1));
+                    }
                 }
             }
         }
+
+        private void ProcessMathJax(DataToParse PageDocument)
+        {
+            var mathjax_span_list = PageDocument.Doc
+                .DocumentNode
+                .SelectNodes("//span[@class=\"MathJax_SVG\"]");
+            if (mathjax_span_list == null)
+            {
+                return;
+            }
+            foreach (var span in mathjax_span_list)
+            {
+                var aria_label = span.Attributes["aria-label"];
+                if (aria_label == null)
+                {
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "MathJax", "", "MathJax SVG spans need an aria-label", "", 1));
+                    }
+                }
+                else if (aria_label.Value == "Equation")
+                {
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location,
+                                                "MathJax",
+                                                "",
+                                                $"Title: \"{span.Attributes["title"]?.Value}\"",
+                                                "MathJax SVG needs a descriptive aria-label (usually the text in the title should be moved to the Aria-Label attribute)",
+                                                3));
+                    }
+                }
+
+            }
+        }
     }
-    
+
     public class MediaParser : RParserBase
     {   //Object to parse course pages for media elements (main user of the VideoParser class)
         private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";
@@ -866,36 +1021,43 @@ namespace ReportGenerators
         public WebDriverWait Wait { get; set; }
         private bool LoggedIntoBrightcove = false;
         public override void ProcessContent(Dictionary<string, string> page_info)
-        {   //Main functio to begin process of a page
-            if (!LoggedIntoBrightcove)
-            {   //Need to make sure the ChromeDriver is logged into brightcove
-                string BrightCoveUserName = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyBrightcoveUsername.txt").Replace("\n", "").Replace("\r", "");
-                var posh = PowerShell.Create();
-                posh.AddScript("process{$c = Get-Content \"$HOME\\Desktop\\AccessibilityTools\\ReportGenerators-master\\Passwords\\MyBrightcovePassword.txt\"; $s = $c | ConvertTo-SecureString; Write-Host (New-Object System.Management.Automation.PSCredential -ArgumentList 'asdf', $s).GetNetworkCredential().Password}"
-                );
-                posh.Invoke();
-                var password = posh.Streams.Information[0].ToString();
+        {   //Main function to begin process of a page
+            lock (Chrome)
+            {
+                lock (Wait)
+                {
+                    if (!LoggedIntoBrightcove)
+                    {   //Need to make sure the ChromeDriver is logged into brightcove
+                        string BrightCoveUserName = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyBrightcoveUsername.txt").Replace("\n", "").Replace("\r", "");
+                        var posh = PowerShell.Create();
+                        posh.AddScript("process{$c = Get-Content \"$HOME\\Desktop\\AccessibilityTools\\ReportGenerators-master\\Passwords\\MyBrightcovePassword.txt\"; $s = $c | ConvertTo-SecureString; Write-Host (New-Object System.Management.Automation.PSCredential -ArgumentList 'asdf', $s).GetNetworkCredential().Password}"
+                        );
+                        posh.Invoke();
+                        var password = posh.Streams.Information[0].ToString();
 
-                Chrome.Url = "https://signin.brightcove.com/login?redirect=https%3A%2F%2Fstudio.brightcove.com%2Fproducts%2Fvideocloud%2Fmedia";
-                Wait.UntilElementIsVisible(By.CssSelector("input[name*=\"email\"]")).SendKeys(BrightCoveUserName);
-                Wait.UntilElementIsVisible(By.CssSelector("input[id*=\"password\"]")).SendKeys(password);
-                Wait.UntilElementIsVisible(By.CssSelector("button[id*=\"signin\"]")).Submit();
-
-                LoggedIntoBrightcove = true;
+                        Chrome.Url = "https://signin.brightcove.com/login?redirect=https%3A%2F%2Fstudio.brightcove.com%2Fproducts%2Fvideocloud%2Fmedia";
+                        Wait.UntilElementIsVisible(By.CssSelector("input[name*=\"email\"]")).SendKeys(BrightCoveUserName);
+                        Wait.UntilElementIsVisible(By.CssSelector("input[id*=\"password\"]")).SendKeys(password);
+                        Wait.UntilElementIsVisible(By.CssSelector("button[id*=\"signin\"]")).Submit();
+                        
+                        LoggedIntoBrightcove = true;
+                    }
+                }
             }
+
             if (page_info[page_info.Keys.ElementAt(0)] == null)
             {   //Just return if there is no page / page is empty
                 return;
             }
             //Set the current document
-            PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
+            var PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
             //Process each of the media elements
-            ProcessLinks();
-            ProcessIframes();
-            ProcessVideoTags();
-            ProcessBrightcoveVideoHTML();
+            ProcessLinks(PageDocument);
+            ProcessIframes(PageDocument);
+            ProcessVideoTags(PageDocument);
+            ProcessBrightcoveVideoHTML(PageDocument);
         }
-        private void ProcessLinks()
+        private void ProcessLinks(DataToParse PageDocument)
         {
             var link_list = PageDocument.Doc
                 .DocumentNode
@@ -904,22 +1066,27 @@ namespace ReportGenerators
             {
                 return;
             }
-            foreach(var link in link_list)
+            foreach (var link in link_list)
             {   //Make sure there is an href
-                if(link.Attributes["href"] == null)
+                if (link.Attributes["href"] == null)
                 {
                     continue;
                 }
                 if (link.GetClasses().Contains("video_link"))
                 {   //See if it is an embded canvas video link
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Canvas Video Link",
-                                                "",
-                                                "Inline Media:\nUnable to find title or video length for this type of video",
-                                                link.Attributes["href"].Value,
-                                                new TimeSpan(0),
-                                                VideoParser.CheckTranscript(link)));
-                }else if(new Regex("youtu\\.?be", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Canvas Video Link",
+                                                                        "",
+                                                                        "Inline Media:\nUnable to find title, CC, or video length for this type of video",
+                                                                        link.Attributes["href"].Value,
+                                                                        new TimeSpan(0),
+                                                                        VideoParser.CheckTranscript(link),
+                                                                        false));
+                    }
+                }
+                else if (new Regex("youtu\\.?be", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                 {   //See if it is a youtube video
                     var uri = new Uri((link.Attributes["href"].Value));
                     var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -955,7 +1122,7 @@ namespace ReportGenerators
                         video_length = new TimeSpan(0);
                     }
                     string video_found = string.Empty;
-                    if(video_length == new TimeSpan(0))
+                    if (video_length == new TimeSpan(0))
                     {   //make sure we apend video not found for the excel doc
                         video_found = "\nVideo not found";
                     }
@@ -963,20 +1130,32 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "YouTube Link",
-                                                video_id,
-                                                link.InnerText + video_found,
-                                                link.Attributes["href"].Value,
-                                                video_length,
-                                                true));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "YouTube Link",
+                                                                        video_id,
+                                                                        link.InnerText + video_found,
+                                                                        link.Attributes["href"].Value,
+                                                                        video_length,
+                                                                        true));
+                    }
                 }
                 else if (link.Attributes["href"].Value.Contains("alexanderstreet"))
                 {
                     string video_id = link.Attributes["href"].Value.Split('/')
                                                                     .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                                     .LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetAlexanderStreenLinkLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetAlexanderStreenLinkLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
+
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -986,19 +1165,32 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "AlexanderStreet Link",
-                                                video_id,
-                                                link.InnerText + video_found,
-                                                link.Attributes["href"].Value,
-                                                video_length,
-                                                false));
-                }else if (link.Attributes["href"].Value.Contains("kanopy"))
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "AlexanderStreet Link",
+                                                                        video_id,
+                                                                        link.InnerText + video_found,
+                                                                        link.Attributes["href"].Value,
+                                                                        video_length,
+                                                                        cc,
+                                                                        cc));
+                    }
+                }
+                else if (link.Attributes["href"].Value.Contains("kanopy"))
                 {
                     string video_id = link.Attributes["href"].Value.Split('/')
                                                                     .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                                     .LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetAlexanderStreenLinkLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetKanopyLinkLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1008,20 +1200,31 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Kanopy Link",
-                                                video_id,
-                                                link.InnerText + video_found,
-                                                link.Attributes["href"].Value,
-                                                video_length,
-                                                false));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Kanopy Link",
+                                                                        video_id,
+                                                                        link.InnerText + video_found,
+                                                                        link.Attributes["href"].Value,
+                                                                        video_length,
+                                                                        cc,
+                                                                        cc));
+                    }
                 }
                 else if (link.Attributes["href"].Value.Contains("byu.mediasite"))
                 {
                     string video_id = link.Attributes["href"].Value.Split('/')
                                                                     .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                                     .LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetAlexanderStreenLinkLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1031,20 +1234,31 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "ByuMediasite Link",
-                                                video_id,
-                                                link.InnerText + video_found,
-                                                link.Attributes["href"].Value,
-                                                video_length,
-                                                false));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "ByuMediasite Link",
+                                                                        video_id,
+                                                                        link.InnerText + video_found,
+                                                                        link.Attributes["href"].Value,
+                                                                        video_length,
+                                                                        false));
+                    }
                 }
                 else if (link.Attributes["href"].Value.Contains("panopto"))
                 {
                     string video_id = link.Attributes["href"].Value.Split('/')
                                                                     .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                                     .LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetAlexanderStreenLinkLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetPanoptoVideoLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1054,22 +1268,36 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Panopto Link",
-                                                video_id,
-                                                link.InnerText + video_found,
-                                                link.Attributes["href"].Value,
-                                                video_length,
-                                                false));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Panopto Link",
+                                                                        video_id,
+                                                                        link.InnerText + video_found,
+                                                                        link.Attributes["href"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(link),
+                                                                        cc));
+                    }
                 }
                 else if (link.Attributes["href"].Value.Contains("bcove"))
                 {
-                    Chrome.Url = link.Attributes["href"].Value;
-                    Wait.UntilElementIsVisible(By.CssSelector("iframe"));
-                    string video_id = Chrome.Url.Split('=')
-                                                .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                                .LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait);
+                    string video_id;
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            Chrome.Url = link.Attributes["href"].Value;
+                            Wait.UntilElementIsVisible(By.CssSelector("iframe"));
+
+                            video_id = Chrome.Url.Split('=')
+                                                        .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
+                                                        .LastOrDefault();
+                            video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1079,17 +1307,21 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Bcove Link",
-                                                video_id,
-                                                link.InnerText + video_found,
-                                                link.Attributes["href"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(link)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Bcove Link",
+                                                                        video_id,
+                                                                        link.InnerText + video_found,
+                                                                        link.Attributes["href"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(link),
+                                                                        cc));
+                    }
                 }
             }
         }
-        private void ProcessIframes()
+        private void ProcessIframes(DataToParse PageDocument)
         {   //Process all the iframes for media elements
             var iframe_list = PageDocument.Doc
                 .DocumentNode
@@ -1098,11 +1330,11 @@ namespace ReportGenerators
             {
                 return;
             }
-            foreach(var iframe in iframe_list)
+            foreach (var iframe in iframe_list)
             {
                 string title = "";
-                
-                if(iframe.Attributes["title"] == null)
+
+                if (iframe.Attributes["title"] == null)
                 {
                     title = "No title attribute found";
                 }
@@ -1111,7 +1343,7 @@ namespace ReportGenerators
                     title = iframe.Attributes["title"].Value;
                 }
 
-                if(iframe.Attributes["src"] == null)
+                if (iframe.Attributes["src"] == null)
                 {
                     continue;
                 }
@@ -1129,7 +1361,7 @@ namespace ReportGenerators
                     {
                         video_id = uri.Segments.LastOrDefault();
                     }
-                    
+
                     TimeSpan video_length;
                     try
                     {
@@ -1150,18 +1382,29 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "YouTube Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                true));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "YouTube Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        true));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("brightcove"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("=").LastOrDefault().CleanSplit("&")[0];
-                    TimeSpan video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1171,31 +1414,47 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Brightcove Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Brightcove Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe),
+                                                                        cc));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("H5P"))
                 {
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "H5P",
-                                                "",
-                                                title,
-                                                iframe.Attributes["src"].Value,
-                                                new TimeSpan(0),
-                                                false));
-                }else if (iframe.Attributes["src"].Value.Contains("byu.mediasite"))
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                "H5P",
+                                                                "",
+                                                                title,
+                                                                iframe.Attributes["src"].Value,
+                                                                new TimeSpan(0),
+                                                                true,
+                                                                true));
+                    }
+                }
+                else if (iframe.Attributes["src"].Value.Contains("byu.mediasite"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("/").LastOrDefault();
                     if (String.IsNullOrEmpty(video_id))
                     {
                         video_id = iframe.Attributes["src"].Value.CleanSplit("/").Reverse().Skip(1).FirstOrDefault();
                     }
-                    TimeSpan video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1205,18 +1464,29 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "BYU Mediasite Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "BYU Mediasite Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe)));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("panopto"))
                 {
-                    string video_id = iframe.Attributes["src"].Value.CleanSplit("=").LastOrDefault().CleanSplit("&")[1];
-                    TimeSpan video_length = VideoParser.GetPanoptoVideoLength(video_id, Chrome, Wait);
+                    string video_id = iframe.Attributes["src"].Value.CleanSplit("id=").LastOrDefault().CleanSplit("&").FirstOrDefault();
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetPanoptoVideoLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1226,18 +1496,30 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Panopto Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Panopto Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe),
+                                                                        cc));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("alexanderstreet"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("token/").LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetAlexanderStreetVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetAlexanderStreetVideoLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1247,18 +1529,30 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "AlexanderStreet Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "AlexanderStreet Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe),
+                                                                        cc));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("kanopy"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("embed/").LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetKanopyVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    bool cc;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetKanopyVideoLength(video_id, Chrome, Wait, out cc);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1268,18 +1562,29 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Kanopy Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Kanopy Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe),
+                                                                        cc));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("ambrosevideo"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("?").LastOrDefault().CleanSplit("&")[0];
-                    TimeSpan video_length = VideoParser.GetKanopyVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetAmbroseVideoLength(video_id, Chrome, Wait);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1289,18 +1594,28 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Ambrose Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Ambrose Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe)));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("facebook"))
                 {
                     string video_id = new Regex("\\d{17}").Match(iframe.Attributes["src"].Value).Value;
-                    TimeSpan video_length = VideoParser.GetKanopyVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetFacebookVideoLength(video_id, Chrome, Wait);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1310,18 +1625,28 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Facebook Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Facebook Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe)));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("dailymotion"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("/").LastOrDefault();
-                    TimeSpan video_length = VideoParser.GetKanopyVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetDailyMotionVideoLength(video_id, Chrome, Wait);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1331,18 +1656,28 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "DailyMotion Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "DailyMotion Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe)));
+                    }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("vimeo"))
                 {
                     string video_id = iframe.Attributes["src"].Value.CleanSplit("/").LastOrDefault().CleanSplit("?")[0];
-                    TimeSpan video_length = VideoParser.GetKanopyVideoLength(video_id, Chrome, Wait);
+                    TimeSpan video_length;
+                    lock (Chrome)
+                    {
+                        lock (Wait)
+                        {
+                            video_length = VideoParser.GetVimeoVideoLength(video_id, Chrome, Wait);
+                        }
+                    }
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
@@ -1352,27 +1687,34 @@ namespace ReportGenerators
                     {
                         video_found = "";
                     }
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                "Vimeo Video",
-                                                video_id,
-                                                title + video_found,
-                                                iframe.Attributes["src"].Value,
-                                                video_length,
-                                                VideoParser.CheckTranscript(iframe)));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                        "Vimeo Video",
+                                                                        video_id,
+                                                                        title + video_found,
+                                                                        iframe.Attributes["src"].Value,
+                                                                        video_length,
+                                                                        VideoParser.CheckTranscript(iframe)));
+                    }
                 }
                 else
                 {
-                    Data.Add(new PageMediaData(PageDocument.Location,
-                                                 "Iframe",
-                                                 "",
-                                                 title,
-                                                 iframe.Attributes["src"].Value,
-                                                 new TimeSpan(0),
-                                                 false));
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                                         "Iframe",
+                                                                         "",
+                                                                         title,
+                                                                         iframe.Attributes["src"].Value,
+                                                                         new TimeSpan(0),
+                                                                         true,
+                                                                         true));
+                    }
                 }
             }
         }
-        private void ProcessVideoTags()
+        private void ProcessVideoTags(DataToParse PageDocument)
         {
             var video_tag_list = PageDocument.Doc
                 .DocumentNode
@@ -1382,20 +1724,23 @@ namespace ReportGenerators
                 return;
             }
 
-            foreach(var video in video_tag_list)
+            foreach (var video in video_tag_list)
             {
                 string video_id = video.Attributes["src"].Value.CleanSplit("=")[1].CleanSplit("&")[0];
-                Data.Add(new PageMediaData(PageDocument.Location,
-                                            "Inline Media Video",
-                                            video_id,
-                                            "Inline Media:\nUnable to find title or video length for this type of video",
-                                            video.Attributes["src"].Value,
-                                            new TimeSpan(0),
-                                            VideoParser.CheckTranscript(video)));
+                lock (Data)
+                {
+                    Data.Add(new PageMediaData(PageDocument.Location,
+                                                                "Inline Media Video",
+                                                                video_id,
+                                                                "Inline Media:\nUnable to find title or video length for this type of video",
+                                                                video.Attributes["src"].Value,
+                                                                new TimeSpan(0),
+                                                                VideoParser.CheckTranscript(video)));
+                }
             }
         }
 
-        private void ProcessBrightcoveVideoHTML()
+        private void ProcessBrightcoveVideoHTML(DataToParse PageDocument)
         {
             var brightcove_list = PageDocument.Doc
                 .DocumentNode
@@ -1405,17 +1750,29 @@ namespace ReportGenerators
             {
                 return;
             }
-            foreach(var video in brightcove_list)
+            foreach (var video in brightcove_list)
             {
                 string video_id = new Regex("\\d{13}").Match(video.Id).Value;
-                TimeSpan video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait);
-                Data.Add(new PageMediaData(PageDocument.Location,
-                                            "Brightcove Video",
-                                            video_id,
-                                            "",
-                                            $"https://studio.brightcove.com/products/videocloud/media/videos/search/{video_id}",
-                                            video_length,
-                                            VideoParser.CheckTranscript(video)));
+                TimeSpan video_length;
+                bool cc;
+                lock (Chrome)
+                {
+                    lock (Wait)
+                    {
+                        video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc);
+                    }
+                }
+                lock (Data)
+                {
+                    Data.Add(new PageMediaData(PageDocument.Location,
+                                                                "Brightcove Video",
+                                                                video_id,
+                                                                "",
+                                                                $"https://studio.brightcove.com/products/videocloud/media/videos/search/{video_id}",
+                                                                video_length,
+                                                                VideoParser.CheckTranscript(video),
+                                                                cc));
+                }
             }
         }
     }
@@ -1427,16 +1784,26 @@ namespace ReportGenerators
             Directory = path;
         }
         private string Directory = string.Empty;
+        public TimeSpan Time = new TimeSpan(0);
+        private object AddTime = new object();
         public override void ProcessContent(Dictionary<string, string> page_info)
         {
+            System.Diagnostics.Stopwatch TimeRunning = new System.Diagnostics.Stopwatch();
+            TimeRunning.Start();
             if (page_info[page_info.Keys.ElementAt(0)] == null)
             {
                 return;
             }
-            PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
+            var PageDocument = new DataToParse(page_info.Keys.ElementAt(0), page_info[page_info.Keys.ElementAt(0)]);
 
-            ProcessLinks();
-            ProcesImages();
+            ProcessLinks(PageDocument);
+            ProcesImages(PageDocument);
+            TimeRunning.Stop();
+            lock (AddTime)
+            {
+                Time += TimeRunning.Elapsed;
+            }
+
         }
         private bool TestUrl(string url)
         {
@@ -1446,19 +1813,19 @@ namespace ReportGenerators
             request.UseDefaultCredentials = true;
             try
             {
-                using(HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 {
                     return response.StatusCode == HttpStatusCode.OK;
                 }
             }
-            catch(WebException)
+            catch (WebException)
             {
                 return false;
             }
         }
         private bool TestPath(string path)
         {
-            if(Directory == "None")
+            if (Directory == "None")
             {
                 //Then we don't have a directory to compare against
                 return true;
@@ -1480,11 +1847,11 @@ namespace ReportGenerators
             {
                 return false;
             }
-            
+
 
             return File.Exists(path);
         }
-        private void ProcessLinks()
+        private void ProcessLinks(DataToParse PageDocument)
         {
             var link_list = PageDocument.Doc
                 .DocumentNode
@@ -1495,47 +1862,57 @@ namespace ReportGenerators
             }
             Parallel.ForEach(link_list, link =>
             {   //Run it in parralell as this takes forever otherwise
-                if(link.Attributes["href"] != null)
+                if (link.Attributes["href"] != null)
                 {
-                    if(new Regex("^#").IsMatch(link.Attributes["href"].Value))
+                    if (new Regex("^#").IsMatch(link.Attributes["href"].Value))
                     {
                         //Do nothing
                     }
-                    else if(new Regex("^mailto:", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
+                    else if (new Regex("^mailto:", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                     {
                         //Do nothing
                     }
-                    else if(new Regex("^javascript:", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
+                    else if (new Regex("^javascript:", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                     {
-                        Data.Add(new PageData(PageDocument.Location, 
-                                                link.Attributes["href"].Value, 
-                                                "", 
-                                                "JavaScript links are often not accessible \\ broken."));
+                        lock (Data)
+                        {
+                            Data.Add(new PageData(PageDocument.Location,
+                                                                            link.Attributes["href"].Value,
+                                                                            "",
+                                                                            "JavaScript links are often not accessible \\ broken."));
+                        }
+
                     }
-                    else if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
+                    else if (new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                     {
                         if (!TestUrl(link.Attributes["href"].Value))
                         {
-                            Data.Add(new PageData(PageDocument.Location,
-                                                    link.Attributes["href"].Value,
-                                                    "",
-                                                    "Broken link, needs to be checked"));
+                            lock (Data)
+                            {
+                                Data.Add(new PageData(PageDocument.Location,
+                                                                                    link.Attributes["href"].Value,
+                                                                                    "",
+                                                                                    "Broken link, needs to be checked"));
+                            }
                         }
                     }
                     else
                     {
                         if (!TestPath(link.Attributes["href"].Value))
                         {
-                            Data.Add(new PageData(PageDocument.Location,
-                                                    link.Attributes["href"].Value,
-                                                    "",
-                                                    "File does not exist"));
+                            lock (Data)
+                            {
+                                Data.Add(new PageData(PageDocument.Location,
+                                                                                    link.Attributes["href"].Value,
+                                                                                    "",
+                                                                                    "File does not exist"));
+                            }
                         }
                     }
                 }
             });
         }
-        private void ProcesImages()
+        private void ProcesImages(DataToParse PageDocument)
         {
             var image_list = PageDocument.Doc
                 .DocumentNode
@@ -1544,11 +1921,11 @@ namespace ReportGenerators
             {
                 return;
             }
-            Parallel.ForEach(image_list, image => 
+            Parallel.ForEach(image_list, image =>
             {   //This is pretty fast on its own, but why not run it parallel
-                if(image.Attributes["src"] != null)
+                if (image.Attributes["src"] != null)
                 {
-                    if(new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$", RegexOptions.IgnoreCase).IsMatch(image.Attributes["src"].Value))
+                    if (new Regex("http|^www\\.|.*?\\.com$|.*?\\.org$", RegexOptions.IgnoreCase).IsMatch(image.Attributes["src"].Value))
                     {
 
                     }
@@ -1556,10 +1933,15 @@ namespace ReportGenerators
                     {
                         if (!TestPath(image.Attributes["src"].Value))
                         {
-                            Data.Add(new PageData(PageDocument.Location,
+
+                            lock (Data)
+                            {
+                                Data.Add(new PageData(PageDocument.Location,
                                                     image.Attributes["src"].Value,
                                                     "",
                                                     "Image does not exist"));
+                            }
+
                         }
                     }
                 }
@@ -1581,14 +1963,14 @@ namespace ReportGenerators
         private ExcelPackage Excel;
         private ExcelRange Cells;
         private int RowNumber;
-        
+
         public void CreateReport(List<PageData> A11yData, List<PageData> MediaData, List<PageData> LinkData)
         {   //Public method to create the report from any input (can put null in place of any of the lists if you only need a certain input).
             if (null != A11yData)
             {
                 AddA11yData(A11yData);
             }
-            if(null != MediaData)
+            if (null != MediaData)
             {
                 AddMediaData(MediaData);
             }
@@ -1604,11 +1986,11 @@ namespace ReportGenerators
             }
             //Get a dynamicly named report just in case one of the same name already exists
             var i = 1;
-            while(new FileInfo(Destination).Exists)
+            while (new FileInfo(Destination).Exists)
             {
                 var new_destination = Destination.Replace(".xlsx", $"_V{i}.xlsx");
-                if(!(new FileInfo(new_destination).Exists))
-                { 
+                if (!(new FileInfo(new_destination).Exists))
+                {
                     Destination = new_destination;
                 }
                 i++;
@@ -1622,11 +2004,11 @@ namespace ReportGenerators
             //All of the string inputs are from the excel document validation and should possibly be made dynamic as if they don't match it will throw an error.
             RowNumber = 9;
             Cells = Excel.Workbook.Worksheets[1].Cells;
-            foreach(var data in data_list)
+            foreach (var data in data_list)
             {
                 Cells[RowNumber, 2].Value = "Not Started";
                 Cells[RowNumber, 3].Value = data.Location.CleanSplit("/").LastOrDefault().CleanSplit("\\").LastOrDefault();
-                Cells[RowNumber, 3].Hyperlink =  new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));
+                Cells[RowNumber, 3].Hyperlink = new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));
                 switch ((data as PageA11yData).Issue.ToLower())
                 {
                     case "adjust link text":
@@ -1654,7 +2036,7 @@ namespace ReportGenerators
                         A11yAddToCell("Semantics", "Improper Headings", $"Invisible header:\n{data.Text}");
                         break;
                     case "no transcript found":
-                        A11yAddToCell("Media", "Transcript Needed", data.Text);
+                        A11yAddToCell("Media", "Transcript Needed", data.Text, 5, 5, 5);
                         break;
                     case "revise table":
                         A11yAddToCell("Table", "", data.Text);
@@ -1663,7 +2045,7 @@ namespace ReportGenerators
                         A11yAddToCell("Semantics", "Bad use of <i> and/or <b>", (data as PageA11yData).Issue);
                         break;
                     case "flash is inaccessible":
-                        A11yAddToCell("Misc", "", $"{data.Text}\n{(data as PageA11yData).Issue}");
+                        A11yAddToCell("Misc", "", $"{data.Text}\n{(data as PageA11yData).Issue}", 5, 5, 5);
                         break;
                     case "does not meet aa color contrast":
                         A11yAddToCell("Color", "Doesn't meet contrast ratio", $"{(data as PageA11yData).Issue}\n{data.Text}");
@@ -1691,14 +2073,17 @@ namespace ReportGenerators
             Cells = Excel.Workbook.Worksheets[2].Cells;
             Excel.Workbook.Worksheets[2].Column(4).Style.Numberformat.Format = "#############";
             Excel.Workbook.Worksheets[2].Column(6).Style.Numberformat.Format = "hh:mm:ss";
-            Excel.Workbook.Worksheets[2].Column(11).Style.Numberformat.Format = "hh:mm:ss";
+            //Excel.Workbook.Worksheets[2].Column(11).Style.Numberformat.Format = "hh:mm:ss";
             Excel.Workbook.Worksheets[2].Column(12).Style.Numberformat.Format = "hh:mm:ss";
+
             foreach (var data in data_list)
             {
                 Cells[RowNumber, 2].Value = data.Element;
                 Cells[RowNumber, 3].Value = data.Location.CleanSplit("/").LastOrDefault().CleanSplit("\\").LastOrDefault();
                 Cells[RowNumber, 3].Hyperlink = new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));
-                if ((from cell in Cells["D:D"] where cell.Value?.ToString() == data.Id select true).Count(c => c == true) > 0)
+                if ((from cell in Cells["D:D"] where cell.Value?.ToString() == data.Id select true).Count(c => c == true) > 0
+                    && data.Id != ""
+                    && data.Id != null)
                 {   //Need to check for duplicate videos so they can be marked and not have the time double up in the total
                     Cells[RowNumber, 4].Value = "Duplicate Video:\n" + data.Id;
                 }
@@ -1711,10 +2096,12 @@ namespace ReportGenerators
                 Cells[RowNumber, 6].Value = (data as PageMediaData).VideoLength;
                 Cells[RowNumber, 7].Value = data.Text;
                 Cells[RowNumber, 8].Value = (data as PageMediaData).Transcript ? "Yes" : "No";
+                Cells[RowNumber, 9].Value = (data as PageMediaData).CC ? "Yes" : "No";
                 RowNumber++;
             }
+
         }
-        
+
         private void AddLinkData(List<PageData> data_list)
         {   //Add all of the link data
             Cells = Excel.Workbook.Worksheets[3].Cells;
@@ -1738,22 +2125,34 @@ namespace ReportGenerators
         //This is where the program will start and take user input / run the reports, may or may not be needed based on how I can get the SpecFlow test to work.
         public static void Main()
         {
-            var TokenInfo = "7407~1R0EdqNU6ywS9hleF7n7xRHkhtkSlD3lqnOOQcUGOhHgTbjGOKRYh4jAG86CEVLH";
-            var BaseUrlInfo = "https://byu.instructure.com";
+            var s = new System.Diagnostics.Stopwatch();
+            s.Start();
 
-            using (var posh = PowerShell.Create())
+            CanvasApi.ChangeDomain("Directory");
+
+            CourseInfo course = new CourseInfo(@"I:\Canvas\USA-043\USA-043-002\HTML");
+            bool directory = true;
+            LinkParser ParseForLinks = new LinkParser(@"I:\Canvas\USA-043\USA-043-002\HTML"); //Need to declare this early as it is only set if it is a directory
+
+            A11yParser ParseForA11y = new A11yParser();
+            MediaParser ParseForMedia = new MediaParser();
+
+            Parallel.ForEach(course.PageHtmlList, page =>
             {
-                posh.AddScript(@"param($t, $b, $p)
-                                    $ApiInfo = [ordered]@{
-                                        Token = $t
-                                        BaseUri = $b
-                                    }
-                                    $ApiInfo | ConvertTo-Json | Out-File -FilePath $p")
-                                    .AddArgument(TokenInfo)
-                                    .AddArgument(BaseUrlInfo)
-                                    .AddArgument(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\BYU2_CanvasApiCreds.json")
-                                    .Invoke();
-            }
+
+                ParseForA11y.ProcessContent(page);
+                ParseForMedia.ProcessContent(page);
+                if (directory)
+                {
+                    ParseForLinks.ProcessContent(page);
+                }
+            });
+
+            CreateExcelReport GenReport = new CreateExcelReport(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\AccessibilityTools\\ReportGenerators-master\\Reports\\ARC_{course.CourseCode}_{CanvasApi.CurrentDomain}.xlsx");
+            GenReport.CreateReport(ParseForA11y.Data, ParseForMedia.Data, ParseForLinks?.Data);
+            s.Stop();
+            ParseForMedia.Chrome.Quit();
+            Console.Write(ParseForLinks.Time.TotalSeconds);
         }
     }
 }

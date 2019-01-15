@@ -22,9 +22,9 @@ namespace ReportGenerators
             this.CourseCode = array.Take(array.Length - 1).LastOrDefault();
 
             PageHtmlList = new List<Dictionary<string, string>>();
-            foreach(var file in Directory.GetFiles(course_path, "*.html", SearchOption.TopDirectoryOnly))
+            Parallel.ForEach(Directory.GetFiles(course_path, "*.html", SearchOption.TopDirectoryOnly), file =>
             {
-                Console.WriteLine(file.CleanSplit("\\").LastOrDefault());
+               // Console.WriteLine(file.CleanSplit("\\").LastOrDefault());
                 string location = string.Empty;
                 switch (Path.GetPathRoot(file))
                 {
@@ -42,8 +42,11 @@ namespace ReportGenerators
                 {
                     [location] = File.ReadAllText(file)
                 };
-                PageHtmlList.Add(temp_dict);
-            }
+                lock (PageHtmlList)
+                {
+                    PageHtmlList.Add(temp_dict);
+                }
+            });
         }
         public CourseInfo(int course_id)
         {
@@ -119,7 +122,10 @@ namespace ReportGenerators
                                break;
                        }
                         //Add the location and HTML body to the List
-                        PageHtmlList.Add(LocationAndBody);
+                        lock (PageHtmlList)
+                        {
+                            PageHtmlList.Add(LocationAndBody);
+                        }
                    }
                    catch (Exception e)
                    {
@@ -196,15 +202,17 @@ namespace ReportGenerators
     public class PageMediaData : PageData
     {
         //Extension of class for Media data from a page
-        public PageMediaData(string location, string element, string id, string text, string media_url, TimeSpan video_length, bool transcript) : base(location, element, id, text)
+        public PageMediaData(string location, string element, string id, string text, string media_url, TimeSpan video_length, bool transcript, bool cc = false) : base(location, element, id, text)
         {
-            this.MediaUrl = media_url;
-            this.VideoLength = video_length;
-            this.Transcript = transcript;
+            MediaUrl = media_url;
+            VideoLength = video_length;
+            Transcript = transcript;
+            CC = cc;
         }
         public string MediaUrl { get; }
         public TimeSpan VideoLength { get; }
         public bool Transcript { get; }
+        public bool CC { get; }
         public override string ToString()
         {
             var props = typeof(PageMediaData).GetProperties();
