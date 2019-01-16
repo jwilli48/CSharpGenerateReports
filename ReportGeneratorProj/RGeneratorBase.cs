@@ -10,7 +10,6 @@ using HtmlAgilityPack;
 using System.Text.RegularExpressions;
 using OfficeOpenXml;
 using System.IO;
-using System.Reflection;
 using OpenQA.Selenium;
 using SeleniumExtentions;
 using System.Net;
@@ -20,7 +19,6 @@ using System.Management.Automation;
 
 namespace ReportGenerators
 {
-
     public static class StringExtentions
     {   //Helpful string extension methods
         public static string[] CleanSplit(this string ToSplit, string seperator)
@@ -108,9 +106,18 @@ namespace ReportGenerators
         }
         public static bool CheckTranscript(HtmlNode element, out string YesOrNo)
         {   //If you want a string Yes or No output instead of a bool
-            if (element.NextSibling.OuterHtml.Contains("transcript")
-                || element.NextSibling.NextSibling.OuterHtml.Contains("transcript")
-                || element.NextSibling.NextSibling.NextSibling.OuterHtml.Contains("transcript"))
+            if (element.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                 || element.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                 || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                 || element.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
+            {
+                YesOrNo = "Yes";
+                return true;
+            }
+            else if (element.ParentNode?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.ParentNode?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
+                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
             {
                 YesOrNo = "Yes";
                 return true;
@@ -1807,7 +1814,16 @@ namespace ReportGenerators
         }
         private bool TestUrl(string url)
         {
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            HttpWebRequest request;
+            try
+            {
+               request  = (HttpWebRequest)WebRequest.Create(url);
+            }
+            catch
+            {
+                return false;
+            }
+            
             request.Method = "HEAD";
             request.Proxy = null;
             request.UseDefaultCredentials = true;
@@ -2113,7 +2129,14 @@ namespace ReportGenerators
                 Cells[RowNumber, 3].Value = data.Element;
                 if (data.Element.Contains("http"))
                 {   //If it is a link make it a hyperlink so it can be clicked easier.
-                    Cells[RowNumber, 3].Hyperlink = new System.Uri(data.Element);
+                    try
+                    {
+                        Cells[RowNumber, 3].Hyperlink = new System.Uri(data.Element);
+                    }
+                    catch
+                    {
+                        //Just don't do anything
+                    }
                 }
                 Cells[RowNumber, 4].Value = data.Text;
                 RowNumber++;
