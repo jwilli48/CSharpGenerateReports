@@ -50,6 +50,21 @@ namespace ReportGenerators
                 default: return input.First().ToString().ToUpper() + input.Substring(1);
             }
         }
+        public static string RollOverTime(this string ToRollOver)
+        {
+            //Must be formated as 00:00:00, hh:mm:ss, else it just returns the exact same string
+            if(!(new Regex(@"\d\d:\d\d:\d\d").IsMatch(ToRollOver)))
+            {
+                return ToRollOver;
+            }
+            var parts = ToRollOver.CleanSplit(':');
+            if(int.Parse(parts[1]) > 59)
+            {
+                parts[1] = (int.Parse(parts[1]) - 60).ToString("D2");
+                parts[0] = (int.Parse(parts[0]) + 1).ToString("D2");
+            }
+            return parts[0] + ":" + parts[1] + ":" + parts[2];
+        }
     }
     public class DataToParse
     {   //Object stored in the ReportParser objects that turns the html string from the CourseInfo object into a live HTML dom to be used by the parsers.
@@ -86,41 +101,67 @@ namespace ReportGenerators
         //Static class to be used to parse information for any videos.
         private static string GoogleApi = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyGoogleApi.txt").Replace("\r\n", "");
         public static bool CheckTranscript(HtmlNode element)
-        {   //Checks if the input element has a transcript in the next 3 elements after it.
-            //May need to touch up these checkes. Make loops to find the parent node that is just below the "body" of the file / document and then serach until the next iframe and see if there is a transcript keyword
-            if (element.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
+        {
+            if (element.OuterHtml.ToLower().Contains("transcript"))
             {
                 return true;
             }
-            else if (element.ParentNode?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.ParentNode?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
+
+            while(element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
             {
-                return true;
+                element = element.NextSibling;
+                if (element.OuterHtml.ToLower().Contains("transcript"))
+                {
+                    return true;
+                }
+            }
+
+            if(element.ParentNode != null)
+            {
+                element = element.ParentNode;
+            }
+
+            while(element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
+            {
+                element = element.NextSibling;
+                if (element.OuterHtml.ToLower().Contains("transcript"))
+                {
+                    return true;
+                }
             }
             return false;
         }
         public static bool CheckTranscript(HtmlNode element, out string YesOrNo)
         {   //If you want a string Yes or No output instead of a bool
-            if (element.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                 || element.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                 || element.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                 || element.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
+            if (element.OuterHtml.ToLower().Contains("transcript"))
             {
                 YesOrNo = "Yes";
                 return true;
             }
-            else if (element.ParentNode?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.ParentNode?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true
-                || element.ParentNode?.NextSibling?.NextSibling?.NextSibling?.NextSibling?.OuterHtml?.ToLower().Contains("transcript") == true)
+
+            while (element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
             {
-                YesOrNo = "Yes";
-                return true;
+                element = element.NextSibling;
+                if (element.OuterHtml.ToLower().Contains("transcript"))
+                {
+                    YesOrNo = "Yes";
+                    return true;
+                }
+            }
+
+            if (element.ParentNode != null)
+            {
+                element = element.ParentNode;
+            }
+
+            while (element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
+            {
+                element = element.NextSibling;
+                if (element.OuterHtml.ToLower().Contains("transcript"))
+                {
+                    YesOrNo = "Yes";
+                    return true;
+                }
             }
             YesOrNo = "No";
             return false;
@@ -148,8 +189,11 @@ namespace ReportGenerators
             {
                 Console.WriteLine("Video not found");
                 length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             chrome.FindElementsByCssSelector("div.name").Where(c => c.Text.Contains(video_id)).FirstOrDefault().FindElement(By.TagName("a")).Click();
             cc = !wait.UntilElementExist(By.CssSelector("section#textTracksPanel")).Text.Contains("There are no text tracks");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
@@ -158,7 +202,7 @@ namespace ReportGenerators
             }
             return video_length;
         }
-        public static TimeSpan GetBYUMediaSiteVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait)
+        public static TimeSpan GetBYUMediaSiteVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://byu.mediasite.com/Mediasite/Play/{video_id}";
             dynamic length = null;
@@ -171,11 +215,26 @@ namespace ReportGenerators
             }
             catch
             {
-                Console.WriteLine("Video not found");
-                length = "00:00";
+                try
+                {
+                    while ("0:00" == length || "" == length || null == length)
+                    {
+                        length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Video not found");
+                    length = "00:00";
+                    cc = false;
+                    return new TimeSpan(0);
+                }
             }
+            
             length = "00:" + length;
-            if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
+            length = (length as string).RollOverTime();
+            cc = wait.UntilElementExist(By.CssSelector("button.cc.ui-button")).GetAttribute("aria-disabled") == "false" ? true : false;
+            if (!TimeSpan.TryParseExact(length, "hh':'mm':'ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
             }
@@ -198,8 +257,11 @@ namespace ReportGenerators
             {
                 Console.WriteLine("Video not found");
                 length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             cc = !wait.UntilElementExist(By.CssSelector("div.fp-menu.fp-subtitle-menu")).GetAttribute("outerHTML").ToLower().Contains("no subtitles");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -219,8 +281,11 @@ namespace ReportGenerators
             {
                 Console.WriteLine("Video not found");
                 length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("ul.tabs")).Text.ToLower().Contains("transcript");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -240,8 +305,11 @@ namespace ReportGenerators
             {
                 Console.WriteLine("Video not found");
                 length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("ul.tabs")).Text.ToLower().Contains("transcript");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -266,8 +334,11 @@ namespace ReportGenerators
             {
                 Console.WriteLine("Video not found");
                 length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("span[data-title='Press play to launch the captions")).Displayed;
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -292,8 +363,11 @@ namespace ReportGenerators
             {
                 Console.WriteLine("Video not found");
                 length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("span[data-title='Press play to launch the captions")).Displayed;
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -348,6 +422,7 @@ namespace ReportGenerators
                 }
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
@@ -369,6 +444,7 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
@@ -389,6 +465,7 @@ namespace ReportGenerators
                 length = "00:00";
             }
             length = "00:" + length;
+            length = (length as string).RollOverTime();
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
@@ -483,7 +560,7 @@ namespace ReportGenerators
                 {   //If it is an image ignore it for now, need to check alt text
                     continue;
                 }
-                if (link.InnerText == null)
+                if (link.InnerText == null || link.InnerText == "")
                 {   //See if it is a link without text
                     lock (Data)
                     {
@@ -1225,11 +1302,12 @@ namespace ReportGenerators
                                                                     .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                                     .LastOrDefault();
                     TimeSpan video_length;
+                    bool cc;
                     lock (Chrome)
                     {
                         lock (Wait)
                         {
-                            video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait);
+                            video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait, out cc);
                         }
                     }
                     string video_found;
@@ -1249,7 +1327,8 @@ namespace ReportGenerators
                                                                         link.InnerText + video_found,
                                                                         link.Attributes["href"].Value,
                                                                         video_length,
-                                                                        false));
+                                                                        VideoParser.CheckTranscript(link),
+                                                                        cc));
                     }
                 }
                 else if (link.Attributes["href"].Value.Contains("panopto"))
@@ -1455,11 +1534,12 @@ namespace ReportGenerators
                         video_id = iframe.Attributes["src"].Value.CleanSplit("/").Reverse().Skip(1).FirstOrDefault();
                     }
                     TimeSpan video_length;
+                    bool cc;
                     lock (Chrome)
                     {
                         lock (Wait)
                         {
-                            video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait);
+                            video_length = VideoParser.GetBYUMediaSiteVideoLength(video_id, Chrome, Wait, out cc);
                         }
                     }
                     string video_found;
@@ -1479,7 +1559,8 @@ namespace ReportGenerators
                                                                         title + video_found,
                                                                         iframe.Attributes["src"].Value,
                                                                         video_length,
-                                                                        VideoParser.CheckTranscript(iframe)));
+                                                                        VideoParser.CheckTranscript(iframe),
+                                                                        cc));
                     }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("panopto"))
@@ -1783,6 +1864,7 @@ namespace ReportGenerators
             }
         }
     }
+
     public class LinkParser : RParserBase
     {
         //class to do a link report
@@ -1893,9 +1975,9 @@ namespace ReportGenerators
                         lock (Data)
                         {
                             Data.Add(new PageData(PageDocument.Location,
-                                                                            link.Attributes["href"].Value,
-                                                                            "",
-                                                                            "JavaScript links are often not accessible \\ broken."));
+                                                    link.Attributes["href"].Value,
+                                                    "",
+                                                    "JavaScript links are often not accessible \\ broken."));
                         }
 
                     }
@@ -1906,9 +1988,9 @@ namespace ReportGenerators
                             lock (Data)
                             {
                                 Data.Add(new PageData(PageDocument.Location,
-                                                                                    link.Attributes["href"].Value,
-                                                                                    "",
-                                                                                    "Broken link, needs to be checked"));
+                                                        link.Attributes["href"].Value,
+                                                        "",
+                                                        "Broken link, needs to be checked"));
                             }
                         }
                     }
@@ -1919,9 +2001,9 @@ namespace ReportGenerators
                             lock (Data)
                             {
                                 Data.Add(new PageData(PageDocument.Location,
-                                                                                    link.Attributes["href"].Value,
-                                                                                    "",
-                                                                                    "File does not exist"));
+                                                        link.Attributes["href"].Value,
+                                                        "",
+                                                        "File does not exist"));
                             }
                         }
                     }
