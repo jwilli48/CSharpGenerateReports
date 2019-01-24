@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using RestSharp;
 using System.IO;
-namespace ReportGenerators
+
+namespace My.CanvasApi
 {
     /*
      * These are structures to hold and get the data using the CanvasAPI as well as the main static class to interact with and use the API.

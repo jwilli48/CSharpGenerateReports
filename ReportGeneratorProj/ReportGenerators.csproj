@@ -87,11 +87,17 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="A11yParser.cs" />
     <Compile Include="CanvasApi.cs" />
     <Compile Include="CourseDataStructures.cs" />
+    <Compile Include="CreateExcelReport.cs" />
+    <Compile Include="LinkParser.cs" />
+    <Compile Include="MediaParser.cs" />
     <Compile Include="RGeneratorBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SeleniumExtentions.cs" />
+    <Compile Include="StringExtentions.cs" />
+    <Compile Include="VideoParser.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

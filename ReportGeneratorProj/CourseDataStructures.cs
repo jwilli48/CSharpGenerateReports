@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using My.CanvasApi;
 
 namespace ReportGenerators
 {
@@ -153,7 +154,7 @@ namespace ReportGenerators
         public string CourseCode { get; }
         public List<Dictionary<string, string>> PageHtmlList { get; set; }
     }
-    public class PageData
+    public class PageData : IEquatable<PageData>
     {
         //Base clas for holding issues / data from a single page
         public PageData(string input_location, string input_element, string input_id, string input_text)
@@ -177,8 +178,23 @@ namespace ReportGenerators
             }
             return sb.ToString();
         }
+
+        public bool Equals(PageData other)
+        {
+            if (Object.ReferenceEquals(other, null)) return false;
+            if (Object.ReferenceEquals(this, other)) return true;
+
+            return ToString() == other.ToString();
+        }
+
+        public override int GetHashCode()
+        {
+            int hashToString = ToString() == null ? 0 : ToString().GetHashCode();
+            return hashToString;
+        }
     }
-    public class PageA11yData : PageData
+
+    public class PageA11yData : PageData , IEquatable<PageA11yData>
     {
         //Exxtension of class for accessibility params desired
         public PageA11yData(string location, string element, string id, string text, string issue, int severity) : base(location, element, id, text)
@@ -198,8 +214,22 @@ namespace ReportGenerators
             }
             return sb.ToString();
         }
+
+        public bool Equals(PageA11yData other)
+        {
+            if (Object.ReferenceEquals(other, null)) return false;
+            if (Object.ReferenceEquals(this, other)) return true;
+
+            return ToString() == other.ToString();
+        }
+
+        public override int GetHashCode()
+        {
+            int hashToString = ToString() == null ? 0 : ToString().GetHashCode();
+            return hashToString;
+        }
     }
-    public class PageMediaData : PageData
+    public class PageMediaData : PageData , IEquatable<PageMediaData>
     {
         //Extension of class for Media data from a page
         public PageMediaData(string location, string element, string id, string text, string media_url, TimeSpan video_length, bool transcript, bool cc = false) : base(location, element, id, text)
@@ -222,6 +252,20 @@ namespace ReportGenerators
                 sb.AppendLine(p.Name + ": " + p.GetValue(this, null));
             }
             return sb.ToString();
+        }
+
+        public bool Equals(PageMediaData other)
+        {
+            if (Object.ReferenceEquals(other, null)) return false;
+            if (Object.ReferenceEquals(this, other)) return true;
+
+            return ToString() == other.ToString();
+        }
+
+        public override int GetHashCode()
+        {
+            int hashToString = ToString() == null ? 0 : ToString().GetHashCode();
+            return hashToString;
         }
     }
 }

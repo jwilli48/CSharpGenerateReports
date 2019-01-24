@@ -1,7 +1,8 @@
 ﻿using System.Linq;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
-namespace SeleniumExtentions
+
+namespace My.SeleniumExtentions
 {
     public static class SeleniumExtentions
     {   //Class to contain any extenstions to selenium
@@ -64,6 +65,14 @@ namespace SeleniumExtentions
                 {
                     return null;
                 }
+            });
+        }
+
+        public static bool UntilPageLoads(this WebDriverWait wait)
+        {
+            return wait.Until(c =>
+            {
+                return ((IJavaScriptExecutor)c).ExecuteScript("return document.readyState").Equals("complete");
             });
         }
     }
