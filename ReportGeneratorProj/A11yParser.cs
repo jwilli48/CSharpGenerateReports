@@ -573,17 +573,60 @@
             }
             foreach (var color in colored_element_list)
             {
+                //Check parent elements for a background color
                 System.Web.UI.CssStyleCollection style = new System.Web.UI.WebControls.Panel().Style;
                 style.Value = color.Attributes["style"].Value;
                 var background_color = style["background-color"];
                 if (background_color == null)
-                {   //Default background color is white
-                    background_color = "#FFFFFF";
+                {
+                    var helper = color;
+                    while(helper.ParentNode != null)
+                    {
+                        helper = helper.ParentNode;
+                        System.Web.UI.CssStyleCollection check = new System.Web.UI.WebControls.Panel().Style;
+                        check.Value = helper.Attributes["style"]?.Value;
+                        if(check.Value != null)
+                        {
+                            background_color = check["background-color"];
+                            if(background_color != null)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    //if its still empty set to default
+                    if(background_color == null)
+                    {
+                        //Default background color is white
+                        background_color = "#FFFFFF";
+                    }
                 }
+
                 var foreground_color = style["color"];
                 if (foreground_color == null)
-                {   //Default text color is black
-                    foreground_color = "#000000";
+                {
+                    //Check parent elements for foreground color
+                    var helper = color;
+                    while (helper.ParentNode != null)
+                    {
+                        helper = helper.ParentNode;
+                        System.Web.UI.CssStyleCollection check = new System.Web.UI.WebControls.Panel().Style;
+                        check.Value = helper.Attributes["style"]?.Value;
+                        if (check.Value != null)
+                        {
+                            foreground_color = check["color"];
+                            if (foreground_color != null)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    //If its still empty set to default color
+                    if (foreground_color == null)
+                    {
+                        //Default background color is white
+                        foreground_color = "#000000";
+                    }
                 }
                 if (!background_color.Contains("#"))
                 {   //If it doesn't have a # then it is a known named color, needs to be converted to hex

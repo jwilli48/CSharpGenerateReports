@@ -50,7 +50,7 @@ namespace My.VideoParser
                 }
             }
 
-            if (element.ParentNode != null)
+            while (element.ParentNode != null && !(element.ParentNode.Name == "#document"))
             {
                 element = element.ParentNode;
             }
@@ -83,7 +83,7 @@ namespace My.VideoParser
                 }
             }
 
-            if (element.ParentNode != null)
+            while (element.ParentNode != null && !(element.ParentNode.Name == "#document"))
             {
                 element = element.ParentNode;
             }
