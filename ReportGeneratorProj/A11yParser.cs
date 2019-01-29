@@ -41,13 +41,18 @@
         {
             //Function to begin processing a page and storing the data within the Data list (see RParserBase class)
             //Make sure page is not empty
-            if (page_info[page_info.Keys.ElementAt(0)] == null)
+            var url = page_info.Keys.ElementAt(0);
+            if (page_info[url] == null)
             {
                 return;
             }
-            
+            //Ignore certain pages
+            if(url.ToLower().Contains("imagegallery.html"))
+            {
+                return;
+            }
             //Go through the online version to make sure there aren't JS issues
-            var url = page_info.Keys.ElementAt(0);
+            
             if (new Regex(@"iscontent\.byu\.edu|isdev\.byu\.edu|file:///").IsMatch(url))
             {   //Get the HTML from a browser so we can see if any accessibility issues were created with JavaScript.
                 var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
