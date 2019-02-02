@@ -114,7 +114,7 @@ namespace My.VideoParser
         public static TimeSpan GetBrightcoveVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://studio.brightcove.com/products/videocloud/media/videos/search/{video_id}";
-            dynamic length;
+            string length;
             try
             {
                 length = wait.UntilElementIsVisible(By.CssSelector("div[class*=\"runtime\"]")).Text;
@@ -126,7 +126,10 @@ namespace My.VideoParser
                 cc = false;
                 return new TimeSpan(0);
             }
-            length = "00:" + length;
+            if((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             chrome.FindElementsByCssSelector("div.name").Where(c => c.Text.Contains(video_id)).FirstOrDefault().FindElement(By.TagName("a")).Click();
             cc = !wait.UntilElementExist(By.CssSelector("section#textTracksPanel")).Text.Contains("There are no text tracks");
@@ -165,7 +168,10 @@ namespace My.VideoParser
                 }
             }
 
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             cc = wait.UntilElementExist(By.CssSelector("button.cc.ui-button")).GetAttribute("aria-disabled") == "false" ? true : false;
             if (!TimeSpan.TryParseExact(length, "hh':'mm':'ss", null, out TimeSpan video_length))
@@ -194,7 +200,10 @@ namespace My.VideoParser
                 cc = false;
                 return new TimeSpan(0);
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             cc = !wait.UntilElementExist(By.CssSelector("div.fp-menu.fp-subtitle-menu")).GetAttribute("outerHTML").ToLower().Contains("no subtitles");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
@@ -218,7 +227,10 @@ namespace My.VideoParser
                 cc = false;
                 return new TimeSpan(0);
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("ul.tabs")).Text.ToLower().Contains("transcript");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
@@ -242,7 +254,10 @@ namespace My.VideoParser
                 cc = false;
                 return new TimeSpan(0);
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("ul.tabs")).Text.ToLower().Contains("transcript");
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
@@ -271,7 +286,10 @@ namespace My.VideoParser
                 cc = false;
                 return new TimeSpan(0);
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("span[data-title='Press play to launch the captions")).Displayed;
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
@@ -300,7 +318,10 @@ namespace My.VideoParser
                 cc = false;
                 return new TimeSpan(0);
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             cc = wait.UntilElementIsVisible(By.CssSelector("span[data-title='Press play to launch the captions")).Displayed;
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
@@ -324,7 +345,10 @@ namespace My.VideoParser
                 Console.WriteLine("Video not found");
                 length = "00:00";
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
                 return new TimeSpan(0);
@@ -355,7 +379,10 @@ namespace My.VideoParser
                     length = "00:00";
                 }
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -377,7 +404,10 @@ namespace My.VideoParser
                 Console.WriteLine("Video not found");
                 length = "00:00";
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
@@ -398,7 +428,10 @@ namespace My.VideoParser
                 Console.WriteLine("Video not found");
                 length = "00:00";
             }
-            length = "00:" + length;
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
             length = (length as string).RollOverTime();
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {
