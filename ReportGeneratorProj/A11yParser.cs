@@ -113,7 +113,6 @@
             //Loop through all links
             foreach (var link in link_list)
             {
-
                 if (link.Attributes["onclick"] != null)
                 {   //Onclick links are not accessible
                     lock (Data)
@@ -270,12 +269,13 @@
                 {
                     if (table_headers == null)
                     {
-                        issues += "\nTable has no headers";
+                        issues += "\nTable has no headers (headers should have scope tags)";
                     }
                 }
                 //See how many headers have scopes, should be the same number as the number of headers
                 var scope_headers = table_headers?.Count(c => c.Attributes["scope"] != null);
-                if (scope_headers == null || scope_headers != table_headers.Count())
+                if ((scope_headers == null || scope_headers != table_headers.Count())
+                        && (table_headers.Count() > 0))
                 {
                     issues += "\nTable headers should have a scope attribute";
                 }
@@ -284,6 +284,10 @@
                 if (scope_cells != null && scope_cells > 0)
                 {
                     issues += "\nNon-header table cells should not have scope attributes";
+                }
+                if(!table.HasChildNodes)
+                {
+                    issues += "\nEmpty table should be removed";
                 }
                 //If any issues were found then add it to the list
                 if (issues != null && issues != "")
@@ -651,6 +655,10 @@
                 if (color.InnerText != null)
                 {
                     text = "\"" + HttpUtility.HtmlDecode(color.InnerText) + "\"\n";
+                }
+                if(text == string.Empty)
+                {
+                    continue;
                 }
                 if (response.AA != "pass")
                 {   //Add it if it doesn't pass AA standards
