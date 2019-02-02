@@ -41,12 +41,12 @@ namespace My.StringExtentions
         public static string RollOverTime(this string ToRollOver)
         {
             //Must be formated as 00:00:00, hh:mm:ss, else it just returns the exact same string
-            if (!(new Regex(@"\d\d:\d\d:\d\d").IsMatch(ToRollOver)))
+            if (!(new Regex(@"^\d\d:\d\d:\d\d$").IsMatch(ToRollOver)))
             {
                 return ToRollOver;
             }
             var parts = ToRollOver.CleanSplit(':');
-            if (int.Parse(parts[1]) > 59)
+            while (int.Parse(parts[1]) > 59)
             {
                 parts[1] = (int.Parse(parts[1]) - 60).ToString("D2");
                 parts[0] = (int.Parse(parts[0]) + 1).ToString("D2");
