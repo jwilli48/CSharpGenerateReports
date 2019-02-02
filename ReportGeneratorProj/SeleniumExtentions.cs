@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
+using OpenQA.Selenium.Chrome;
 
 namespace My.SeleniumExtentions
 {
@@ -74,6 +75,26 @@ namespace My.SeleniumExtentions
             {
                 return ((IJavaScriptExecutor)c).ExecuteScript("return document.readyState").Equals("complete");
             });
+        }
+        public static IWebElement ReturnClear(this IWebElement element)
+        {
+            element.SendKeys("");
+            element.SendKeys(Keys.Backspace);
+            element.Clear();
+            return element;
+        }
+
+        public static bool isAlertPresent(this ChromeDriver chrome)
+        {
+            try
+            {
+                chrome.SwitchTo().Alert();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }
