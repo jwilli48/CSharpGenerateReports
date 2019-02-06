@@ -274,8 +274,9 @@
                 }
                 //See how many headers have scopes, should be the same number as the number of headers
                 var scope_headers = table_headers?.Count(c => c.Attributes["scope"] != null);
-                if ((scope_headers == null || scope_headers != table_headers.Count())
-                        && (table_headers.Count() > 0))
+                if((table_headers != null) 
+                    && (table_headers.Count() > 0) 
+                    && (scope_headers == null || scope_headers != table_headers.Count()))
                 {
                     issues += "\nTable headers should have a scope attribute";
                 }
