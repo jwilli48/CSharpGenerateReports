@@ -92,18 +92,19 @@
                     lock (Data)
                     {
                         Data.Add(new PageMediaData(PageDocument.Location,
-                                                                        "Canvas Video Link",
-                                                                        "",
-                                                                        "Inline Media:\nUnable to find title, CC, or video length for this type of video",
-                                                                        link.Attributes["href"].Value,
-                                                                        new TimeSpan(0),
-                                                                        VideoParser.CheckTranscript(link),
-                                                                        false));
+                                                    "Canvas Video Link",
+                                                    "",
+                                                    "Inline Media:\nUnable to find title, CC, or video length for this type of video",
+                                                    link.Attributes["href"].Value,
+                                                    new TimeSpan(0),
+                                                    VideoParser.CheckTranscript(link),
+                                                    false));
                     }
                 }
                 else if (new Regex("youtu\\.?be", RegexOptions.IgnoreCase).IsMatch(link.Attributes["href"].Value))
                 {   //See if it is a youtube video
                     var uri = new Uri((link.Attributes["href"].Value));
+                    
                     var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
                     var video_id = string.Empty;
                     if (query.AllKeys.Contains("v"))
@@ -116,6 +117,8 @@
                     }
                     //Get time from video
                     TimeSpan video_length;
+                    bool channel = false;
+                    string title = "";
                     try
                     {
                         video_id = video_id.Split('?')
@@ -127,8 +130,16 @@
                         video_id = video_id.Split('#')
                                             .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                             .FirstOrDefault();
-
-                        video_length = VideoParser.GetYoutubeVideoLength(video_id);
+                        if (uri.Segments.Contains("channel/"))
+                        {
+                            title = VideoParser.GetYTChannelName(video_id);
+                            video_length = new TimeSpan(0);
+                            channel = true;
+                        }
+                        else
+                        {
+                            video_length = VideoParser.GetYoutubeVideoLength(video_id);
+                        }
                     }
                     catch
                     {
@@ -137,24 +148,29 @@
                         video_length = new TimeSpan(0);
                     }
                     string video_found = string.Empty;
-                    if (video_length == new TimeSpan(0))
+                    if (video_length == new TimeSpan(0) && !channel)
                     {   //make sure we apend video not found for the excel doc
                         video_found = "\nVideo not found";
                     }
                     else
                     {
                         video_found = "";
+                        if(channel)
+                        {
+                            video_found = $"\nLinks to a channel named: {title}";
+                        }
                     }
+
                     lock (Data)
                     {
                         Data.Add(new PageMediaData(PageDocument.Location,
-                                                                        "YouTube Link",
-                                                                        video_id,
-                                                                        link.InnerText + video_found,
-                                                                        link.Attributes["href"].Value,
-                                                                        video_length,
-                                                                        true,
-                                                                        true));
+                                                    "YouTube Link",
+                                                    video_id,
+                                                    link.InnerText + video_found,
+                                                    link.Attributes["href"].Value,
+                                                    video_length,
+                                                    true,
+                                                    true));
                     }
                 }
                 else if (link.Attributes["href"].Value.Contains("alexanderstreet"))
@@ -184,13 +200,13 @@
                     lock (Data)
                     {
                         Data.Add(new PageMediaData(PageDocument.Location,
-                                                                        "AlexanderStreet Link",
-                                                                        video_id,
-                                                                        link.InnerText + video_found,
-                                                                        link.Attributes["href"].Value,
-                                                                        video_length,
-                                                                        cc,
-                                                                        cc));
+                                                    "AlexanderStreet Link",
+                                                    video_id,
+                                                    link.InnerText + video_found,
+                                                    link.Attributes["href"].Value,
+                                                    video_length,
+                                                    cc,
+                                                    cc));
                     }
                 }
                 else if (link.Attributes["href"].Value.Contains("kanopy"))
@@ -427,7 +443,7 @@
                     string video_found;
                     if (video_length == new TimeSpan(0))
                     {
-                        video_found = "\nVideo not found";
+                        video_found = iframe.Attributes["src"].Value.Contains("playlistId") ? "\nVideo playlist. Manual check for transcripts needed." : "\nVideo not found";
                     }
                     else
                     {
@@ -436,13 +452,13 @@
                     lock (Data)
                     {
                         Data.Add(new PageMediaData(PageDocument.Location,
-                                                                        "Brightcove Video",
-                                                                        video_id,
-                                                                        title + video_found,
-                                                                        iframe.Attributes["src"].Value,
-                                                                        video_length,
-                                                                        VideoParser.CheckTranscript(iframe),
-                                                                        cc));
+                                                    "Brightcove Video",
+                                                    video_id,
+                                                    title + video_found,
+                                                    iframe.Attributes["src"].Value,
+                                                    video_length,
+                                                    VideoParser.CheckTranscript(iframe),
+                                                    cc));
                     }
                 }
                 else if (iframe.Attributes["src"].Value.Contains("H5P"))

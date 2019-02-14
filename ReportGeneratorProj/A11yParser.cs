@@ -9,7 +9,6 @@
     using System.Web;
     using My.StringExtentions;
     using My.VideoParser;
-    using HtmlAgilityPack;
     using OpenQA.Selenium.Chrome;
     using OpenQA.Selenium.Support.UI;
     using My.SeleniumExtentions;

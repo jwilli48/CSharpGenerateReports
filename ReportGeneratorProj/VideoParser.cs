@@ -10,6 +10,8 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using My.SeleniumExtentions;
 using System.Xml;
+using Google.Apis.Services;
+using Google.Apis.YouTube.v3;
 
 namespace My.VideoParser
 {
@@ -65,6 +67,7 @@ namespace My.VideoParser
             }
             return false;
         }
+        
         public static bool CheckTranscript(HtmlNode element, out string YesOrNo)
         {   //If you want a string Yes or No output instead of a bool
             if (element.OuterHtml.ToLower().Contains("transcript"))
@@ -99,6 +102,19 @@ namespace My.VideoParser
             }
             YesOrNo = "No";
             return false;
+        }
+        public static string GetYTChannelName(string id)
+        {
+            var youTube = new YouTubeService(new BaseClientService.Initializer() { ApiKey = GoogleApi });
+            Dictionary<String, String> parameters = new Dictionary<string, string>
+            {
+                ["part"] = "snippet"
+            };
+            var channelsListRequest = youTube.Channels.List("snippet");
+            channelsListRequest.Id = id;
+            var channelListResponse = channelsListRequest.Execute();
+
+            return channelListResponse.Items[0].Snippet.Title;
         }
         //Below is the functions to get the video length from various ID inputs. Uses Selenium ChromeDriver to get some of them without an API.
         //They all return a timespan object with the length of the video. 
