@@ -632,6 +632,23 @@
                         foreground_color = "#000000";
                     }
                 }
+
+                var check_children = color;
+                while (check_children.FirstChild.Name != "#text")
+                {
+                    check_children = check_children.FirstChild;
+                    System.Web.UI.CssStyleCollection check = new System.Web.UI.WebControls.Panel().Style;
+                    check.Value = check_children.Attributes["style"]?.Value;
+                    if (check["color"] != null)
+                    {
+                        foreground_color = check["color"];
+                    }
+                    if(check["background-color"] != null)
+                    {
+                        background_color = check["background-color"];
+                    }
+                }
+                
                 if (!background_color.Contains("#"))
                 {   //If it doesn't have a # then it is a known named color, needs to be converted to hex
                     //the & 0xFFFFFF cuts ofthe A of the ARGB
@@ -656,7 +673,7 @@
                 {
                     text = "\"" + HttpUtility.HtmlDecode(color.InnerText) + "\"\n";
                 }
-                if(text == string.Empty)
+                if(text == string.Empty || text == "\"\"")
                 {
                     continue;
                 }
