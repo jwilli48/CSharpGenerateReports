@@ -228,6 +228,38 @@ namespace My.VideoParser
             }
             return video_length;
         }
+        public static TimeSpan GetPanoptoVideoViewerLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
+        {
+            chrome.Url = $"https://byu.hosted.panopto.com/Panopto/Pages/Viewer.aspx?tid={video_id}";
+            while ((string)chrome.ExecuteScript("return document.readyState") != "complete") { };
+            dynamic length = null;
+            try
+            {
+                length = wait.UntilElementIsVisible(By.CssSelector("div#timeRemaining")).Text.Replace("-", "");
+            }
+            catch
+            {
+                Console.WriteLine("Video not found");
+                length = "00:00";
+                cc = false;
+                return new TimeSpan(0);
+            }
+            if((length as string).Length < 5)
+            {
+                length = "0" + length;
+            }
+            if ((length as string).Count(c => c == ':') < 2)
+            {
+                length = "00:" + length;
+            }
+            length = (length as string).RollOverTime();
+            cc = wait.UntilElementIsVisible(By.CssSelector("div#transcriptTabHeader")).Enabled;
+            if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
+            {
+                return new TimeSpan(0);
+            }
+            return video_length;
+        }
         public static TimeSpan GetAlexanderStreetVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
         {
             chrome.Url = $"https://search.alexanderstreet.com/view/work/bibliographic_entity|video_work|{video_id}";
