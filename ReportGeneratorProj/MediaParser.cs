@@ -284,13 +284,22 @@
                     string video_id = link.Attributes["href"].Value.Split('/')
                                                                     .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                                     .LastOrDefault();
+                    video_id = video_id.CleanSplit("id=").LastOrDefault().CleanSplit("&").FirstOrDefault();
+
                     TimeSpan video_length;
                     bool cc;
                     lock (Chrome)
                     {
                         lock (Wait)
                         {
-                            video_length = VideoParser.GetPanoptoVideoLength(video_id, Chrome, Wait, out cc);
+                            if(link.Attributes["href"].Value.Contains("Viewer.aspx"))
+                            {
+                                video_length = VideoParser.GetPanoptoVideoViewerLength(video_id, Chrome, Wait, out cc);
+                            }
+                            else
+                            {
+                                video_length = VideoParser.GetPanoptoVideoLength(video_id, Chrome, Wait, out cc);
+                            }
                         }
                     }
                     string video_found;
@@ -305,13 +314,13 @@
                     lock (Data)
                     {
                         Data.Add(new PageMediaData(PageDocument.Location,
-                                                                        "Panopto Link",
-                                                                        video_id,
-                                                                        link.InnerText + video_found,
-                                                                        link.Attributes["href"].Value,
-                                                                        video_length,
-                                                                        VideoParser.CheckTranscript(link),
-                                                                        cc));
+                                                    "Panopto Link",
+                                                    video_id,
+                                                    link.InnerText + video_found,
+                                                    link.Attributes["href"].Value,
+                                                    video_length,
+                                                    VideoParser.CheckTranscript(link),
+                                                    cc));
                     }
                 }
                 else if (link.Attributes["href"].Value.Contains("bcove"))
@@ -400,6 +409,7 @@
                     try
                     {
                         video_id = video_id.CleanSplit("?").FirstOrDefault();
+                        video_id = video_id.CleanSplit("%").FirstOrDefault();
                         video_length = VideoParser.GetYoutubeVideoLength(video_id);
                     }
                     catch
