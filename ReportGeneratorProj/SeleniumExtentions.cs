@@ -2,6 +2,7 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Firefox;
 
 namespace My.SeleniumExtentions
 {
@@ -84,6 +85,18 @@ namespace My.SeleniumExtentions
             return element;
         }
 
+        public static bool isAlertPresent(this FirefoxDriver ff)
+        {
+            try
+            {
+                ff.SwitchTo().Alert();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         public static bool isAlertPresent(this ChromeDriver chrome)
         {
             try
