@@ -136,10 +136,10 @@
             RowNumber = 4;
             Cells = Excel.Workbook.Worksheets[2].Cells;
             Excel.Workbook.Worksheets[2].Column(4).Style.Numberformat.Format = "#############";
-            Excel.Workbook.Worksheets[2].Column(6).Style.Numberformat.Format = "hh:mm:ss";
+            //Excel.Workbook.Worksheets[2].Column(6).Style.Numberformat.Format = "hh:mm:ss";
             //Excel.Workbook.Worksheets[2].Column(11).Style.Numberformat.Format = "hh:mm:ss";
-            Excel.Workbook.Worksheets[2].Column(12).Style.Numberformat.Format = "hh:mm:ss";
-
+            //Excel.Workbook.Worksheets[2].Column(12).Style.Numberformat.Format = "hh:mm:ss";
+            
             foreach (var data in data_list)
             {
                 Cells[RowNumber, 2].Value = data.Element;
