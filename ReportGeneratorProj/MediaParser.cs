@@ -773,16 +773,30 @@
 
             foreach (var video in video_tag_list)
             {
+                if (video.Attributes["src"] == null)
+                {
+                    lock (Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                    "Inline Media Video",
+                                                    "",
+                                                    $"Something may be wrong with this video...\n{video.OuterHtml}",
+                                                    "",
+                                                    new TimeSpan(0),
+                                                    VideoParser.CheckTranscript(video)));
+                    }
+                    continue;
+                }
                 string video_id = video.Attributes["src"].Value.CleanSplit("=")[1].CleanSplit("&")[0];
                 lock (Data)
                 {
                     Data.Add(new PageMediaData(PageDocument.Location,
-                                                                "Inline Media Video",
-                                                                video_id,
-                                                                "Inline Media:\nUnable to find title or video length for this type of video",
-                                                                video.Attributes["src"].Value,
-                                                                new TimeSpan(0),
-                                                                VideoParser.CheckTranscript(video)));
+                                                "Inline Media Video",
+                                                video_id,
+                                                "Inline Media:\nUnable to find title or video length for this type of video",
+                                                video.Attributes["src"].Value,
+                                                new TimeSpan(0),
+                                                VideoParser.CheckTranscript(video)));
                 }
             }
         }

@@ -316,7 +316,32 @@
             foreach (var iframe in iframe_list)
             {
                 //Get the source attribute, every iframe should have one
-                var src = iframe.Attributes["src"].Value;
+                var src = "";
+                if(iframe.Attributes["src"] == null)
+                {
+                    if(iframe.Attributes["data-src"] != null)
+                    {
+                        src = iframe.Attributes["data-src"].Value;
+                    }
+                    else
+                    {
+                        lock (Data)
+                        {
+                            Data.Add(new PageA11yData(PageDocument.Location,
+                                                    "Iframe",
+                                                    "Can't find source",
+                                                    "Unable to find iframe source",
+                                                    "Iframes should all have a soruce",
+                                                    3));
+                        }
+                        continue;
+                    }
+                   
+                }
+                else
+                {
+                    src = iframe.Attributes["src"].Value;
+                }
                 if (iframe.Attributes["title"] == null)
                 {
                     //Only real accessiblity issue we can check is if it has a title or not
@@ -531,13 +556,27 @@
             }
             foreach (var videotag in videotag_list)
             {
-                var src = videotag.Attributes["src"].Value;
-                var videoId = src.Split('=')
-                                    .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                    .ElementAt(1)
-                                    .Split('&')
-                                    .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
-                                    .FirstOrDefault();
+                string src, videoId;
+                if(videotag.Attributes["src"] == null)
+                {
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videotag.OuterHtml, "Something may be wrong with this video...", "Check video", 3));
+                    }
+                    src = "";
+                    videoId = "Unable to find ... ";
+                }
+                else
+                {
+                    src = videotag.Attributes["src"].Value;
+                    videoId = src.Split('=')
+                                        .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
+                                        .ElementAt(1)
+                                        .Split('&')
+                                        .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
+                                        .FirstOrDefault();
+                }
+
                 if (!VideoParser.CheckTranscript(videotag))
                 {
                     lock (Data)
@@ -628,14 +667,15 @@
                     //If its still empty set to default color
                     if (foreground_color == null)
                     {
-                        //Default background color is white
+                        //Default text color is black
                         foreground_color = "#000000";
                     }
                 }
 
                 var check_children = color;
                 while (check_children.FirstChild.Name != "#text")
-                {
+                {   //Checks till we run into the text if there are any color changes.
+                    //May not work if it is something like <p style="color: base;">asdasdsa<span style="color: NewColor;">asdasd</span>asdasd<span style="color: DiffColor;">asdasd</span></p>
                     check_children = check_children.FirstChild;
                     System.Web.UI.CssStyleCollection check = new System.Web.UI.WebControls.Panel().Style;
                     check.Value = check_children.Attributes["style"]?.Value;
@@ -651,7 +691,7 @@
                 
                 if (!background_color.Contains("#"))
                 {   //If it doesn't have a # then it is a known named color, needs to be converted to hex
-                    //the & 0xFFFFFF cuts ofthe A of the ARGB
+                    //the & 0xFFFFFF cuts off the A of the ARGB
                     int rgb = System.Drawing.Color.FromName(background_color.FirstCharToUpper()).ToArgb() & 0xFFFFFF;
                     background_color = string.Format("{0:x6}", rgb);
                 }
