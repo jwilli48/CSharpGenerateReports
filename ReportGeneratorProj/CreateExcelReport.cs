@@ -156,7 +156,14 @@
                     Cells[RowNumber, 4].Value = data.Id;
                 }
                 Cells[RowNumber, 5].Value = Regex.Replace((data as PageMediaData).MediaUrl, "^//", "https://");
-                Cells[RowNumber, 5].Hyperlink = new System.Uri(Regex.Replace((data as PageMediaData).MediaUrl, "^//", "https://"));
+                try
+                {
+                    Cells[RowNumber, 5].Hyperlink = new System.Uri(Regex.Replace((data as PageMediaData).MediaUrl, "^//", "https://"));
+                }
+                catch
+                {
+                    //do nothing
+                }
                 Cells[RowNumber, 6].Value = (data as PageMediaData).VideoLength;
                 Cells[RowNumber, 7].Value = data.Text;
                 Cells[RowNumber, 8].Value = (data as PageMediaData).Transcript ? "Yes" : "No";
