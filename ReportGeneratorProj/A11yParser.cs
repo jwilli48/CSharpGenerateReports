@@ -673,7 +673,7 @@
                 }
 
                 var check_children = color;
-                while (check_children.FirstChild.Name != "#text")
+                while (check_children.FirstChild != null && check_children.FirstChild.Name != "#text")
                 {   //Checks till we run into the text if there are any color changes.
                     //May not work if it is something like <p style="color: base;">asdasdsa<span style="color: NewColor;">asdasd</span>asdasd<span style="color: DiffColor;">asdasd</span></p>
                     check_children = check_children.FirstChild;
