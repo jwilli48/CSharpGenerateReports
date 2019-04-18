@@ -190,7 +190,7 @@
                     }
                     catch
                     {
-                        //Just don't do anything
+                        //Just don't do anything since the link is not a valid url format
                     }
                 }
                 Cells[RowNumber, 4].Value = data.Text;

@@ -95,6 +95,11 @@ namespace My.CanvasApi
         //BYU has 3 main domain names
         private static string domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
         public static string CurrentDomain = "";
+        public static void ResetApiCreds()
+        {
+            token = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
+            domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
+        }
         public static void ChangeDomain(string domain)
         {
             CurrentDomain = domain;
@@ -119,11 +124,7 @@ namespace My.CanvasApi
                     //Directory, nothing should be needed
                     break;
             }
-        }
-        public static void ResetApiCreds()
-        {
-            token = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
-            domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
+            ResetApiCreds();
         }
         public static CanvasCourse GetCanvasCourse(int course_id)
         {
