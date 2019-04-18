@@ -40,7 +40,7 @@
         {
             //Function to begin processing a page and storing the data within the Data list (see RParserBase class)
             //Make sure page is not empty
-            var url = page_info.Keys.ElementAt(0);
+            var url = page_info.Keys.ElementAt(0);  //key is the url, points to the body (HTML)
             if (page_info[url] == null)
             {
                 return;
@@ -50,10 +50,11 @@
             {
                 return;
             }
+
             //Go through the online version to make sure there aren't JS issues
-            
             if (new Regex(@"iscontent\.byu\.edu|isdev\.byu\.edu|file:///").IsMatch(url))
             {   //Get the HTML from a browser so we can see if any accessibility issues were created with JavaScript.
+                //This is run in a multi-threaded environment, so we want to limit how long we use the browser as it could dramtically slow things down if it tries to open to many.
                 var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
                 chromeDriverService.HideCommandPromptWindow = true;
                 var ChromeOptions = new ChromeOptions();
@@ -76,6 +77,7 @@
                 ProcessColor(Online_PageDocument);
                 ProcessMathJax(Online_PageDocument);
                 ProcessOnclicks(Online_PageDocument);
+                ProcessAudioElements(Online_PageDocument);
             }
             else
             {   //For a canvas course. I want to avoid doing the above as this would require having to use Duo to log into BYU account to access the Canvas course.
@@ -95,6 +97,7 @@
                 ProcessColor(PageDocument);
                 ProcessMathJax(PageDocument);
                 ProcessOnclicks(PageDocument);
+                ProcessAudioElements(PageDocument);
             }
             
         }
@@ -320,7 +323,7 @@
                 if(iframe.Attributes["src"] == null)
                 {
                     if(iframe.Attributes["data-src"] != null)
-                    {
+                    {   //found that sometimes a data-src is used istead of the normal src
                         src = iframe.Attributes["data-src"].Value;
                     }
                     else
@@ -616,11 +619,11 @@
             }
             foreach (var color in colored_element_list)
             {
-                //Check parent elements for a background color
-                System.Web.UI.CssStyleCollection style = new System.Web.UI.WebControls.Panel().Style;
-                style.Value = color.Attributes["style"].Value;
-                var background_color = style["background-color"];
-                if (background_color == null)
+                
+                System.Web.UI.CssStyleCollection style = new System.Web.UI.WebControls.Panel().Style; //Get styles of element
+                style.Value = color.Attributes["style"].Value; 
+                var background_color = style["background-color"];   //Grab background color
+                if (background_color == null)   //If there is no background color look at parent elements first
                 {
                     var helper = color;
                     while(helper.ParentNode != null)
@@ -632,7 +635,7 @@
                         {
                             background_color = check["background-color"];
                             if(background_color != null)
-                            {
+                            {   //once we find a background-color then we can stop looking
                                 break;
                             }
                         }
@@ -648,7 +651,7 @@
                 var foreground_color = style["color"];
                 if (foreground_color == null)
                 {
-                    //Check parent elements for foreground color
+                    //Check parent elements for foreground color if the current did not have one
                     var helper = color;
                     while (helper.ParentNode != null)
                     {
@@ -671,11 +674,12 @@
                         foreground_color = "#000000";
                     }
                 }
-
+                /////////// To reduce number of false positives / negatives the next bit looks at any elements between the current and the actual text to see if it changes
+                //////////  Often run into elements that immediately have their color overwritten and is never used
                 var check_children = color;
                 while (check_children.FirstChild != null && check_children.FirstChild.Name != "#text")
                 {   //Checks till we run into the text if there are any color changes.
-                    //May not work if it is something like <p style="color: base;">asdasdsa<span style="color: NewColor;">asdasd</span>asdasd<span style="color: DiffColor;">asdasd</span></p>
+                    //May not work very well if it is something like <p style="color: base;">asdasdsa<span style="color: NewColor;">asdasd</span>asdasd<span style="color: DiffColor;">asdasd</span></p>
                     check_children = check_children.FirstChild;
                     System.Web.UI.CssStyleCollection check = new System.Web.UI.WebControls.Panel().Style;
                     check.Value = check_children.Attributes["style"]?.Value;
@@ -714,7 +718,7 @@
                     text = "\"" + HttpUtility.HtmlDecode(color.InnerText) + "\"\n";
                 }
                 if(text == string.Empty || text == "\"\"")
-                {
+                {   //if there was no text just assume it isn't an issue. Will be almost impossible to find it anyway.
                     continue;
                 }
                 if (response.AA != "pass")
@@ -737,7 +741,7 @@
                 return;
             }
             foreach (var span in mathjax_span_list)
-            {
+            {   //// MathJax needs an aria-label to be accessible
                 var aria_label = span.Attributes["aria-label"];
                 if (aria_label == null)
                 {
@@ -747,7 +751,7 @@
                     }
                 }
                 else if (aria_label.Value == "Equation")
-                {
+                {   //// Seems we commonly just have the single word "Equation" for every MathJax element as the aria-label
                     lock (Data)
                     {
                         Data.Add(new PageA11yData(PageDocument.Location,
@@ -763,7 +767,7 @@
         }
 
         private void ProcessOnclicks(DataToParse PageDocument)
-        {
+        {   //// Some courses use a ton of inaccessible OnClick elements in place of everything
             var onclick_elements = PageDocument.Doc
                                                .DocumentNode
                                                .SelectNodes("//*[@onclick]");
@@ -774,15 +778,39 @@
             foreach(var el in onclick_elements)
             {
                 if(el.Name == "a")
-                {
+                {   //// Check links elsewhere, dont need to double check
                     continue;
                 }
-                Data.Add(new PageA11yData(PageDocument.Location,
+                lock(Data)
+                {
+                    Data.Add(new PageA11yData(PageDocument.Location,
                                           "Onclick Element",
                                           "",
                                           el.OuterHtml,
                                           "Onclick attributes are not keyboard accessible",
                                           3));
+                }
+            }
+        }
+
+        private void ProcessAudioElements(DataToParse PageDocument)
+        {   //// Audio Recordings should have transcripts for deaf people
+            var audio_elements = PageDocument.Doc
+                                            .DocumentNode
+                                            .SelectNodes("//a[contains(@class, 'instructure_audio_link')]");
+            if(audio_elements == null)
+            {
+                return;
+            }
+            foreach(var el in audio_elements)
+            {
+                if (!VideoParser.CheckTranscript(el))
+                {
+                    lock (Data)
+                    {
+                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Audio Recording", "", el.InnerText, "No transcript found", 5));
+                    }
+                }
             }
         }
     }

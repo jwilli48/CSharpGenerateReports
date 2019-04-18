@@ -127,10 +127,11 @@ namespace My.VideoParser
             var response = restClient.Execute<YoutubeData>(request);
             return XmlConvert.ToTimeSpan(response.Data.items[0].contentDetails.duration);
         }
-        public static TimeSpan GetBrightcoveVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc)
+        public static TimeSpan GetBrightcoveVideoLength(string video_id, ChromeDriver chrome, WebDriverWait wait, out bool cc, out string text)
         {
             chrome.Url = $"https://studio.brightcove.com/products/videocloud/media/videos/search/{video_id}";
             string length;
+            text = "";
             try
             {
                 length = wait.UntilElementIsVisible(By.CssSelector("div[class*=\"runtime\"]")).Text;
@@ -151,10 +152,20 @@ namespace My.VideoParser
             {
                 chrome.FindElementsByCssSelector("div.name").Where(c => c.Text.Contains(video_id)).FirstOrDefault().FindElement(By.TagName("a")).Click();
                 cc = !wait.UntilElementExist(By.CssSelector("section#textTracksPanel")).Text.Contains("There are no text tracks");
+                
             }
             catch
             {
                 cc = false;
+            }
+            try
+            {
+                var NameElement = wait.UntilElementExist(By.CssSelector("div[id*=\"video-name\"]"));
+                text = "\nVideo name: " + NameElement.Text;
+            }
+            catch
+            {
+                text = "\nFailed to find video name";
             }
             if (!TimeSpan.TryParseExact(length, @"h\:mm\:ss", null, out TimeSpan video_length))
             {

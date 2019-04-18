@@ -43,6 +43,7 @@
                 {
                     if (!LoggedIntoBrightcove)
                     {   //Need to make sure the ChromeDriver is logged into brightcove
+                        //Since I already had a powershell script to do this I just load and run that script
                         string BrightCoveUserName = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyBrightcoveUsername.txt").Replace("\n", "").Replace("\r", "");
                         var posh = PowerShell.Create();
                         posh.AddScript("process{$c = Get-Content \"$HOME\\Desktop\\AccessibilityTools\\ReportGenerators-master\\Passwords\\MyBrightcovePassword.txt\"; $s = $c | ConvertTo-SecureString; Write-Host (New-Object System.Management.Automation.PSCredential -ArgumentList 'asdf', $s).GetNetworkCredential().Password}"
@@ -81,6 +82,7 @@
             {
                 return;
             }
+            var BrightCoveVideoName = "";
             foreach (var link in link_list)
             {   //Make sure there is an href
                 if (link.Attributes["href"] == null)
@@ -95,6 +97,20 @@
                                                     "Canvas Video Link",
                                                     "",
                                                     "Inline Media:\nUnable to find title, CC, or video length for this type of video",
+                                                    link.Attributes["href"].Value,
+                                                    new TimeSpan(0),
+                                                    VideoParser.CheckTranscript(link),
+                                                    false));
+                    }
+                }
+                else if(link.GetClasses().Contains("instructure_audio_link"))
+                {
+                    lock(Data)
+                    {
+                        Data.Add(new PageMediaData(PageDocument.Location,
+                                                    "Canvas Audio Link",
+                                                    "",
+                                                    link.InnerText,
                                                     link.Attributes["href"].Value,
                                                     new TimeSpan(0),
                                                     VideoParser.CheckTranscript(link),
@@ -338,7 +354,7 @@
                             video_id = Chrome.Url.Split('=')
                                                         .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
                                                         .LastOrDefault();
-                            video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc);
+                            video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc, out BrightCoveVideoName);
                         }
                     }
                     string video_found;
@@ -355,7 +371,7 @@
                         Data.Add(new PageMediaData(PageDocument.Location,
                                                                         "Bcove Link",
                                                                         video_id,
-                                                                        link.InnerText + video_found,
+                                                                        link.InnerText + video_found + BrightCoveVideoName,
                                                                         link.Attributes["href"].Value,
                                                                         video_length,
                                                                         VideoParser.CheckTranscript(link),
@@ -373,6 +389,7 @@
             {
                 return;
             }
+            var BrightCoveVideoName = "";
             foreach (var iframe in iframe_list)
             {
                 string title = "";
@@ -447,7 +464,7 @@
                     {
                         lock (Wait)
                         {
-                            video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc);
+                            video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc, out BrightCoveVideoName);
                         }
                     }
                     string video_found;
@@ -464,7 +481,7 @@
                         Data.Add(new PageMediaData(PageDocument.Location,
                                                     "Brightcove Video",
                                                     video_id,
-                                                    title + video_found,
+                                                    title + video_found + BrightCoveVideoName,
                                                     iframe.Attributes["src"].Value,
                                                     video_length,
                                                     VideoParser.CheckTranscript(iframe),
@@ -811,6 +828,7 @@
             {
                 return;
             }
+            string BrightCoveVideoName = "";
             foreach (var video in brightcove_list)
             {
                 string video_id = new Regex("\\d{13}").Match(video.Id).Value;
@@ -820,7 +838,7 @@
                 {
                     lock (Wait)
                     {
-                        video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc);
+                        video_length = VideoParser.GetBrightcoveVideoLength(video_id, Chrome, Wait, out cc, out BrightCoveVideoName);
                     }
                 }
                 lock (Data)
@@ -828,7 +846,7 @@
                     Data.Add(new PageMediaData(PageDocument.Location,
                                                                 "Brightcove Video",
                                                                 video_id,
-                                                                "",
+                                                                BrightCoveVideoName,
                                                                 $"https://studio.brightcove.com/products/videocloud/media/videos/search/{video_id}",
                                                                 video_length,
                                                                 VideoParser.CheckTranscript(video),
