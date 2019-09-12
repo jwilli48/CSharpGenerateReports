@@ -7,6 +7,7 @@
     using OfficeOpenXml;
     using System.IO;
     using My.StringExtentions;
+    using Newtonsoft.Json;
 
     public class CreateExcelReport
     {   //Class to take care of creating the report
@@ -23,7 +24,17 @@
         private ExcelPackage Excel;
         private ExcelRange Cells;
         private int RowNumber;
-
+        private class JsonDataFormat
+        {
+            [JsonProperty("Completed?")]
+            public bool Completed { get; set; }
+            public string Location { get; set; }
+            [JsonProperty("Issue Type")]
+            public string IssueType { get; set; }
+            [JsonProperty("Descriptive Error")]
+            public string DescriptiveError { get; set; }
+            public string Notes { get; set; }
+        }
         public void CreateReport(List<PageData> A11yData, List<PageData> MediaData, List<PageData> LinkData)
         {   //Public method to create the report from any input (can put null in place of any of the lists if you only need a certain input).
             if (null != A11yData)
@@ -54,6 +65,32 @@
                     Destination = new_destination;
                 }
                 i++;
+            }
+            List<JsonDataFormat> json = new List<JsonDataFormat>();
+            var numIssues = 0;
+            var row = 9;
+            string dataDir = @"M:\DESIGNER\Content EditorsELTA\Accessibility Assistants\JSON_DATA\Accessibility";
+            while (numIssues < Excel.Workbook.Worksheets[1].Tables[0].Address.Rows)
+            {
+                var data = new JsonDataFormat
+                {
+                    Completed = (String)Cells[row, 2].Value == "Not Started" ? false : true,
+                    Location = (String)Cells[row, 3].Value,
+                    IssueType = (String)Cells[row, 4].Value,
+                    DescriptiveError = (String)Cells[row, 5].Value,
+                    Notes = (String)Cells[row, 6].Value
+                };
+                json.Add(data);
+                numIssues++;
+                row++;
+            }
+            using (StreamWriter file = new StreamWriter(System.IO.Path.Combine(dataDir, Excel.File.Name + ".json"), false))
+            {
+                JsonSerializer serializer = new JsonSerializer
+                {
+                    Formatting = Formatting.Indented
+                };
+                serializer.Serialize(file, json);
             }
             //Save and dispose
             Excel.SaveAs(new FileInfo(Destination));
