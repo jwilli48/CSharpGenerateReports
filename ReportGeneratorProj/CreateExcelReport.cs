@@ -70,6 +70,7 @@
             var numIssues = 0;
             var row = 9;
             string dataDir = @"M:\DESIGNER\Content EditorsELTA\Accessibility Assistants\JSON_DATA\Accessibility";
+            Cells = Excel.Workbook.Worksheets[1].Cells;
             while (numIssues < Excel.Workbook.Worksheets[1].Tables[0].Address.Rows)
             {
                 var data = new JsonDataFormat
@@ -84,7 +85,7 @@
                 numIssues++;
                 row++;
             }
-            using (StreamWriter file = new StreamWriter(System.IO.Path.Combine(dataDir, Excel.File.Name + ".json"), false))
+            using (StreamWriter file = new StreamWriter(System.IO.Path.Combine(dataDir, System.IO.Path.GetFileName(Destination).Replace(".xlsx", ".json")), false))
             {
                 JsonSerializer serializer = new JsonSerializer
                 {
