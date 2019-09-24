@@ -349,7 +349,14 @@
                         lock (Wait)
                         {
                             Chrome.Url = link.Attributes["href"].Value;
-                            Wait.UntilElementIsVisible(By.CssSelector("iframe"));
+                            try
+                            {
+                                Wait.UntilElementIsVisible(By.CssSelector("iframe"));
+                            }catch
+                            {
+
+                            }
+                            
 
                             video_id = Chrome.Url.Split('=')
                                                         .Where(s => !string.IsNullOrEmpty(s) && !string.IsNullOrWhiteSpace(s))
