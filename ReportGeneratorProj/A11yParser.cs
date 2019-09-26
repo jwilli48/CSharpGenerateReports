@@ -397,7 +397,8 @@
                     }
                     else if (new Regex("panopto", RegexOptions.IgnoreCase).IsMatch(src))
                     {
-                        var videoId = src.CleanSplit('=').LastOrDefault().CleanSplit('&').ElementAtOrDefault(1);
+                        var videoId = src.CleanSplit("id=").LastOrDefault().CleanSplit('&').FirstOrDefault();
+                                            
                         lock (Data)
                         {
                             Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1));
