@@ -46,53 +46,53 @@
                 return;
             }
             //Ignore certain pages
-            if(url.ToLower().Contains("imagegallery.html"))
+            if(url.ToLower().Contains("imagegallery.html") || url.ToLower().Contains("coursemedia.html"))
             {
                 return;
             }
 
-            //Go through the online version to make sure there aren't JS issues
-            if (new Regex(@"iscontent\.byu\.edu|isdev\.byu\.edu|file:///").IsMatch(url))
-            {   //Get the HTML from a browser so we can see if any accessibility issues were created with JavaScript.
-                //This is run in a multi-threaded environment, so we want to limit how long we use the browser as it could dramtically slow things down if it tries to open to many.
-                var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
-                chromeDriverService.HideCommandPromptWindow = true;
-                var ChromeOptions = new ChromeOptions();
-                ChromeOptions.AddArguments("headless", "muteaudio");
-                var Chrome = new ChromeDriver(chromeDriverService, ChromeOptions);
-                var Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
-                Chrome.Url = url;
-                if (Chrome.isAlertPresent())
-                {
-                    Chrome.SwitchTo().Alert().Dismiss();
-                    Chrome.SwitchTo().Window(Chrome.CurrentWindowHandle);
-                }
-                Wait.UntilPageLoads();
-                if (Chrome.isAlertPresent())
-                {
-                    Chrome.SwitchTo().Alert().Dismiss();
-                    Chrome.SwitchTo().Window(Chrome.CurrentWindowHandle);
-                }
-                var Online_PageDocument = new DataToParse(url, Chrome.FindElementByTagName("body").GetAttribute("outerHTML"));
-                Chrome.Quit();
-                ProcessLinks(Online_PageDocument);
-                ProcessImages(Online_PageDocument);
-                ProcessIframes(Online_PageDocument);
-                ProcessTables(Online_PageDocument);
-                ProcessBrightcoveVideoHTML(Online_PageDocument);
-                ProcessHeaders(Online_PageDocument);
-                ProcessSemantics(Online_PageDocument);
-                ProcessVideoTags(Online_PageDocument);
-                ProcessFlash(Online_PageDocument);
-                ProcessColor(Online_PageDocument);
-                ProcessMathJax(Online_PageDocument);
-                ProcessOnclicks(Online_PageDocument);
-                ProcessAudioElements(Online_PageDocument);
-            }
-            else
-            {   //For a canvas course. I want to avoid doing the above as this would require having to use Duo to log into BYU account to access the Canvas course.
-                //May have to do the above if I find out JavaScript is being used within Canvas.
-                //Set our current document (creates an HTML dom from the pages body)
+            ////Go through the online version to make sure there aren't JS issues
+            //if (new Regex(@"iscontent\.byu\.edu|isdev\.byu\.edu|file:///").IsMatch(url))
+            //{   //Get the HTML from a browser so we can see if any accessibility issues were created with JavaScript.
+            //    //This is run in a multi-threaded environment, so we want to limit how long we use the browser as it could dramtically slow things down if it tries to open to many.
+            //    var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
+            //    chromeDriverService.HideCommandPromptWindow = true;
+            //    var ChromeOptions = new ChromeOptions();
+            //    ChromeOptions.AddArguments("headless", "muteaudio");
+            //    var Chrome = new ChromeDriver(chromeDriverService, ChromeOptions);
+            //    var Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
+            //    Chrome.Url = url;
+            //    if (Chrome.isAlertPresent())
+            //    {
+            //        Chrome.SwitchTo().Alert().Dismiss();
+            //        Chrome.SwitchTo().Window(Chrome.CurrentWindowHandle);
+            //    }
+            //    Wait.UntilPageLoads();
+            //    if (Chrome.isAlertPresent())
+            //    {
+            //        Chrome.SwitchTo().Alert().Dismiss();
+            //        Chrome.SwitchTo().Window(Chrome.CurrentWindowHandle);
+            //    }
+            //    var Online_PageDocument = new DataToParse(url, Chrome.FindElementByTagName("body").GetAttribute("outerHTML"));
+            //    Chrome.Quit();
+            //    ProcessLinks(Online_PageDocument);
+            //    ProcessImages(Online_PageDocument);
+            //    ProcessIframes(Online_PageDocument);
+            //    ProcessTables(Online_PageDocument);
+            //    ProcessBrightcoveVideoHTML(Online_PageDocument);
+            //    ProcessHeaders(Online_PageDocument);
+            //    ProcessSemantics(Online_PageDocument);
+            //    ProcessVideoTags(Online_PageDocument);
+            //    ProcessFlash(Online_PageDocument);
+            //    ProcessColor(Online_PageDocument);
+            //    ProcessMathJax(Online_PageDocument);
+            //    ProcessOnclicks(Online_PageDocument);
+            //    ProcessAudioElements(Online_PageDocument);
+            //}
+            //else
+            //{   //For a canvas course. I want to avoid doing the above as this would require having to use Duo to log into BYU account to access the Canvas course.
+            //    //May have to do the above if I find out JavaScript is being used within Canvas.
+            //    //Set our current document (creates an HTML dom from the pages body)
                 var PageDocument = new DataToParse(url, page_info[url]);
                 //Process the elements of the page from the HTML
                 ProcessLinks(PageDocument);
@@ -108,7 +108,7 @@
                 ProcessMathJax(PageDocument);
                 ProcessOnclicks(PageDocument);
                 ProcessAudioElements(PageDocument);
-            }
+            //}
             
         }
         private void ProcessLinks(DataToParse PageDocument)
@@ -129,14 +129,14 @@
                 {   //Onclick links are not accessible
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.Attributes["onclick"].Value, "JavaScript links are not accessible", 1, link.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.Attributes["onclick"].Value, "JavaScript links are not accessible", 1, link.XPath));
                     }
                 }
                 else if (link.Attributes["href"] == null)
                 {   //Links should have an href
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "Empty link tag", 1, link.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.OuterHtml, "Empty link tag", 1, link.XPath));
                     }
                 }
                 if (link.InnerHtml.Contains("<img"))
@@ -147,14 +147,14 @@
                 {   //See if it is a link without text
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", $"Invisible link with no text\n{link.OuterHtml}", "Adjust Link Text", 1, link.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", $"Invisible link with no text\n{link.OuterHtml}", "Adjust Link Text", 1, link.XPath));
                     }
                 }
                 else if (new Regex("^ ?here", RegexOptions.IgnoreCase).IsMatch(link.InnerText))
                 {   //If it begins with the word here probably not descriptive link text
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1, link.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1, link.XPath));
                     }
                 }
                 else if (new Regex("^ ?[A-Za-z\\.]+ ?$").IsMatch(link.InnerText))
@@ -163,7 +163,7 @@
                     {   //And if the single word is used for more then one link
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1, link.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1, link.XPath));
                         }
                     }
                 }
@@ -175,7 +175,7 @@
                     }
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1, link.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Link", "", link.InnerText, "Adjust Link Text", 1, link.XPath));
                     }
                 }
             }
@@ -200,49 +200,49 @@
                 {   //Images should have alt tags, even if it is empty
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", image.OuterHtml, "No alt attribute", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", image.OuterHtml, "No alt attribute", 1, image.XPath));
                     }
                 }
                 else if (new Regex("banner", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Banners shouldn't have alt text
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.XPath));
                     }
                 }
                 else if (new Regex("Placeholder", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Placeholder probably means the alt text was forgotten to be changed
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.XPath));
                     }
                 }
                 else if (new Regex("\\.jpg", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Make sure it is not just the images file name
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.XPath));
                     }
                 }
                 else if (new Regex("\\.png", RegexOptions.IgnoreCase).IsMatch(alt))
                 {
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.XPath));
                     }
                 }
                 else if (new Regex("http", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //It should not be a url
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.XPath));
                     }
                 }
                 else if (new Regex("LaTeX:", RegexOptions.IgnoreCase).IsMatch(alt))
                 {   //Should not be latex (ran into this a couple of times)
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Image", "", alt, "Alt text may need adjustment", 1, image.XPath));
                     }
                 }
             }
@@ -346,7 +346,7 @@
                                                     "Unable to find iframe source",
                                                     "Iframes should all have a soruce",
                                                     3,
-                                                    iframe.OuterHtml));
+                                                    iframe.XPath));
                         }
                         continue;
                     }
@@ -375,7 +375,7 @@
                         }
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Youtube Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Youtube Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("brightcove", RegexOptions.IgnoreCase).IsMatch(src))
@@ -388,14 +388,14 @@
                         }
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Brightcove Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Brightcove Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("H5P", RegexOptions.IgnoreCase).IsMatch(src))
                     {   //H5P can just be added
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "H5P", "", "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "H5P", "", "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("byu\\.mediasite", RegexOptions.IgnoreCase).IsMatch(src))
@@ -403,7 +403,7 @@
                         var videoId = src.CleanSplit("/").LastOrDefault();
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "BYU Mediasite Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "BYU Mediasite Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("panopto", RegexOptions.IgnoreCase).IsMatch(src))
@@ -412,7 +412,7 @@
                                             
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Panopto Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("alexanderstreet", RegexOptions.IgnoreCase).IsMatch(src))
@@ -422,7 +422,7 @@
                                             .LastOrDefault();
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "AlexanderStreen Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "AlexanderStreen Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("kanopy", RegexOptions.IgnoreCase).IsMatch(src))
@@ -432,7 +432,7 @@
                                             .LastOrDefault();
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Kanopy Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Kanopy Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("ambrosevideo", RegexOptions.IgnoreCase).IsMatch(src))
@@ -445,7 +445,7 @@
                                             .FirstOrDefault();
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Ambrose Video", videoId, "", "NEeds a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Ambrose Video", videoId, "", "NEeds a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("facebook", RegexOptions.IgnoreCase).IsMatch(src))
@@ -453,7 +453,7 @@
                         var videoId = new Regex("\\d{17}").Match(src).Value;
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("dailymotion", RegexOptions.IgnoreCase).IsMatch(src))
@@ -463,7 +463,7 @@
                                             .LastOrDefault();
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Facebook Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else if (new Regex("vimeo", RegexOptions.IgnoreCase).IsMatch(src))
@@ -476,14 +476,14 @@
                                             .FirstOrDefault();
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Vimeo Video", videoId, "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Vimeo Video", videoId, "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                     else
                     {
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Iframe", "", "", "Needs a title", 1, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Iframe", "", "", "Needs a title", 1, iframe.XPath));
                         }
                     }
                 }
@@ -493,7 +493,7 @@
                     {
                         lock (Data)
                         {
-                            Data.Add(new PageA11yData(PageDocument.Location, "Transcript", "", $"Video number {iframe_number} on page", "No transcript found", 5, iframe.OuterHtml));
+                            Data.Add(new PageA11yData(PageDocument.Location, "Transcript", "", $"Video number {iframe_number} on page", "No transcript found", 5, iframe.XPath));
                         }
                     }
                 }
@@ -516,7 +516,7 @@
                 {
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Transcript", video.Attributes["id"].Value, $"No transcript found for BrightCove video with id:\n{video.Attributes["id"].Value}", "No transcript found", 5, video.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Transcript", video.Attributes["id"].Value, $"No transcript found for BrightCove video with id:\n{video.Attributes["id"].Value}", "No transcript found", 5, video.XPath));
                     }
                 }
             }
@@ -536,7 +536,7 @@
                 {
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Header", "", header.OuterHtml, "Check if header is meant to be invisible", 1, header.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Header", "", header.OuterHtml, "Check if header is meant to be invisible", 1, header.XPath));
                     }
                 }
             }
@@ -576,7 +576,7 @@
                 {
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videotag.OuterHtml, "Something may be wrong with this video...", "Check video", 3, videotag.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videotag.OuterHtml, "Something may be wrong with this video...", "Check video", 3, videotag.XPath));
                     }
                     src = "";
                     videoId = "Unable to find ... ";
@@ -596,7 +596,7 @@
                 {
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videoId, "Inline Media Video\n", "No transcript found", 5, videotag.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Media Video", videoId, "Inline Media Video\n", "No transcript found", 5, videotag.XPath));
                     }
                 }
             }
@@ -737,7 +737,7 @@
                 {   //Add it if it doesn't pass AA standards
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Color Contrast", "", $"{text}Color: {foreground_color}\nBackgroundColor: {background_color}\n{response.ToString()}", "Does not meet AA color contrast", 1, color.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Color Contrast", "", $"{text}Color: {foreground_color}\nBackgroundColor: {background_color}\n{response.ToString()}", "Does not meet AA color contrast", 1, color.XPath));
                     }
                 }
             }
@@ -772,7 +772,7 @@
                                                 $"Title: \"{span.Attributes["title"]?.Value}\"",
                                                 "MathJax SVG needs a descriptive aria-label (usually the text in the title should be moved to the Aria-Label attribute)",
                                                 3,
-                                                span.OuterHtml));
+                                                span.XPath));
                     }
                 }
 
@@ -802,7 +802,7 @@
                                           el.OuterHtml,
                                           "Onclick attributes are not keyboard accessible",
                                           3,
-                                          el.OuterHtml));
+                                          el.XPath));
                 }
             }
         }
@@ -822,7 +822,7 @@
                 {
                     lock (Data)
                     {
-                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Audio Recording", "", el.InnerText, "No transcript found", 5, el.OuterHtml));
+                        Data.Add(new PageA11yData(PageDocument.Location, "Inline Audio Recording", "", el.InnerText, "No transcript found", 5, el.XPath));
                     }
                 }
             }
