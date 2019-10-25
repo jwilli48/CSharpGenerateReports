@@ -38,34 +38,10 @@
         //It is currently just a testing function
         public static void Main()
         {
-            var s = new System.Diagnostics.Stopwatch();
-            s.Start();
+            A11yParser a11YParser = new A11yParser();
+            CourseInfo course = new CourseInfo(@"Q:\BrainHoney\Courses\ACC-200\ACC-200-M001\HTML");
 
-            CanvasApi.ChangeDomain("Directory");
 
-            CourseInfo course = new CourseInfo(@"I:\Canvas\USA-043\USA-043-002\HTML");
-            bool directory = true;
-            LinkParser ParseForLinks = new LinkParser(@"I:\Canvas\USA-043\USA-043-002\HTML"); //Need to declare this early as it is only set if it is a directory
-
-            A11yParser ParseForA11y = new A11yParser();
-            MediaParser ParseForMedia = new MediaParser();
-
-            Parallel.ForEach(course.PageHtmlList, page =>
-            {
-
-                ParseForA11y.ProcessContent(page);
-                ParseForMedia.ProcessContent(page);
-                if (directory)
-                {
-                    ParseForLinks.ProcessContent(page);
-                }
-            });
-
-            CreateExcelReport GenReport = new CreateExcelReport(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + $"\\AccessibilityTools\\ReportGenerators-master\\Reports\\ARC_{course.CourseCode}_{CanvasApi.CurrentDomain}.xlsx");
-            GenReport.CreateReport(ParseForA11y.Data, ParseForMedia.Data, ParseForLinks?.Data);
-            s.Stop();
-            ParseForMedia.Chrome.Quit();
-            Console.Write(ParseForLinks.Time.TotalSeconds);
         }
     }
 }

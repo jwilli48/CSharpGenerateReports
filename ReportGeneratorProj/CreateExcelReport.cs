@@ -34,6 +34,7 @@
             [JsonProperty("Descriptive Error")]
             public string DescriptiveError { get; set; }
             public string Notes { get; set; }
+            public string html { get; set; }
         }
         public void CreateReport(List<PageData> A11yData, List<PageData> MediaData, List<PageData> LinkData)
         {   //Public method to create the report from any input (can put null in place of any of the lists if you only need a certain input).
@@ -79,7 +80,8 @@
                     Location = (String)Cells[row, 3].Value,
                     IssueType = (String)Cells[row, 4].Value,
                     DescriptiveError = (String)Cells[row, 5].Value,
-                    Notes = (String)Cells[row, 6].Value
+                    Notes = (String)Cells[row, 6].Value,
+                    html = (String)Cells[row, 10].Value
                 };
                 json.Add(data);
                 numIssues++;
@@ -107,59 +109,59 @@
             {
                 Cells[RowNumber, 2].Value = "Not Started";
                 Cells[RowNumber, 3].Value = data.Location.CleanSplit("/").LastOrDefault().CleanSplit("\\").LastOrDefault();
-                Cells[RowNumber, 3].Hyperlink = new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));
+                Cells[RowNumber, 3].Hyperlink = new System.Uri(Regex.Replace(data.Location, "api/v\\d/", ""));        
                 switch ((data as PageA11yData).Issue.ToLower())
                 {
                     case "adjust link text":
-                        A11yAddToCell("Link", "Non-Descriptive Link", data.Text);
+                        A11yAddToCell("Link", "Non-Descriptive Link", data.Text, html:(data as PageA11yData).html);
                         break;
                     case "javascript links are not accessible":
-                        A11yAddToCell("Link", "JavaScript Link", data.Text);
+                        A11yAddToCell("Link", "JavaScript Link", data.Text, html: (data as PageA11yData).html);
                         break;
                     case "broken link":
-                        A11yAddToCell("Link", "Broken Link", data.Text);
+                        A11yAddToCell("Link", "Broken Link", data.Text, html: (data as PageA11yData).html);
                         break;
                     case "empty link tag":
-                        A11yAddToCell("Link", "Broken Link", data.Text);
+                        A11yAddToCell("Link", "Broken Link", data.Text, html: (data as PageA11yData).html);
                         break;
                     case "needs a title":
-                        A11yAddToCell("Semantics", "Missing title/label", $"{data.Element} needs a title attribute\nID: {data.Id}");
+                        A11yAddToCell("Semantics", "Missing title/label", $"{data.Element} needs a title attribute\nID: {data.Id}", html: (data as PageA11yData).html);
                         break;
                     case "no alt attribute":
-                        A11yAddToCell("Image", "No Alt Attribute", data.Text);
+                        A11yAddToCell("Image", "No Alt Attribute", data.Text, html: (data as PageA11yData).html);
                         break;
                     case "alt text may need adjustment":
-                        A11yAddToCell("Image", "Non-Descriptive alt tags", data.Text);
+                        A11yAddToCell("Image", "Non-Descriptive alt tags", data.Text, html: (data as PageA11yData).html);
                         break;
                     case "check if header is meant to be invisible and is not a duplicate":
-                        A11yAddToCell("Semantics", "Improper Headings", $"Invisible header:\n{data.Text}");
+                        A11yAddToCell("Semantics", "Improper Headings", $"Invisible header:\n{data.Text}", html: (data as PageA11yData).html);
                         break;
                     case "no transcript found":
-                        A11yAddToCell("Media", "Transcript Needed", data.Text, 5, 5, 5);
+                        A11yAddToCell("Media", "Transcript Needed", data.Text, 5, 5, 5, html: (data as PageA11yData).html);
                         break;
                     case "revise table":
-                        A11yAddToCell("Table", "", data.Text);
+                        A11yAddToCell("Table", "", data.Text, html: (data as PageA11yData).html);
                         break;
                     case "<i>/<b> tags should be <em>/<strong> tags":
-                        A11yAddToCell("Semantics", "Bad use of <i> and/or <b>", (data as PageA11yData).Issue);
+                        A11yAddToCell("Semantics", "Bad use of <i> and/or <b>", (data as PageA11yData).Issue, html: (data as PageA11yData).html);
                         break;
                     case "flash is inaccessible":
-                        A11yAddToCell("Misc", "", $"{data.Text}\n{(data as PageA11yData).Issue}", 5, 5, 5);
+                        A11yAddToCell("Misc", "", $"{data.Text}\n{(data as PageA11yData).Issue}", 5, 5, 5, html: (data as PageA11yData).html);
                         break;
                     case "does not meet aa color contrast":
-                        A11yAddToCell("Color", "Doesn't meet contrast ratio", $"{(data as PageA11yData).Issue}\n{data.Text}");
+                        A11yAddToCell("Color", "Doesn't meet contrast ratio", $"{(data as PageA11yData).Issue}\n{data.Text}", html: (data as PageA11yData).html);
                         break;
                     case "onclick attributes are not keyboard accessible":
-                        A11yAddToCell("Keyboard", "Page/Element not navigable", $"{(data as PageA11yData).Issue}\n{data.Text}");
+                        A11yAddToCell("Keyboard", "Page/Element not navigable", $"{(data as PageA11yData).Issue}\n{data.Text}", html: (data as PageA11yData).html);
                         break;
                     default:
-                        A11yAddToCell("", "", (data.Element + "\n" + data.Text + "\n" + (data as PageA11yData).Issue));
+                        A11yAddToCell("", "", (data.Element + "\n" + data.Text + "\n" + (data as PageA11yData).Issue), html: (data as PageA11yData).html);
                         break;
                 }
                 RowNumber++;
             }
         }
-        private void A11yAddToCell(string issue_type, string descriptive_error, string notes, int severity = 1, int occurence = 1, int detection = 1)
+        private void A11yAddToCell(string issue_type, string descriptive_error, string notes, int severity = 1, int occurence = 1, int detection = 1, string html = "")
         {   //Helper function to insert data
             Cells[RowNumber, 4].Value = issue_type;
             Cells[RowNumber, 5].Value = descriptive_error;
@@ -167,6 +169,7 @@
             Cells[RowNumber, 7].Value = severity;
             Cells[RowNumber, 8].Value = occurence;
             Cells[RowNumber, 9].Value = detection;
+            Cells[RowNumber, 10].Value = html;
         }
         private void AddMediaData(List<PageData> data_list)
         {

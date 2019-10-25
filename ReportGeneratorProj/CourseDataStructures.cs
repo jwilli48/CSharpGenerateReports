@@ -197,13 +197,15 @@ namespace ReportGenerators
     public class PageA11yData : PageData , IEquatable<PageA11yData>
     {
         //Exxtension of class for accessibility params desired
-        public PageA11yData(string location, string element, string id, string text, string issue, int severity) : base(location, element, id, text)
+        public PageA11yData(string location, string element, string id, string text, string issue, int severity, string html = "") : base(location, element, id, text)
         {
             this.Issue = issue;
             this.Severity = severity;
+            this.html = html;
         }
         public string Issue { get; }
         public int Severity { get; }
+        public string html { get; }
         public override string ToString()
         {
             var props = typeof(PageA11yData).GetProperties();

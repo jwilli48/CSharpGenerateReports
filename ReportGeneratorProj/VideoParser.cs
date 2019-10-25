@@ -134,7 +134,7 @@ namespace My.VideoParser
             text = "";
             try
             {
-                length = wait.UntilElementIsVisible(By.CssSelector("div[class*=\"runtime\"]")).Text;
+                length = wait.UntilElementIsVisible(By.CssSelector("div[class*=\"Thumbnail\"]")).Text;
             }
             catch
             {
@@ -223,7 +223,7 @@ namespace My.VideoParser
             {
                 while (chrome.FindElementsByCssSelector("[id=copyrightNoticeContainer]").FirstOrDefault().Displayed) { };
                 wait.UntilElementIsVisible(By.CssSelector("div#title"));
-                wait.UntilElementIsVisible(By.CssSelector("div[aria-label=\"Play\"]")).Click();
+                wait.UntilElementIsVisible(By.CssSelector("div#playIconContainer")).Click();
 
                 length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;
             }
