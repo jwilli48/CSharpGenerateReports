@@ -42,7 +42,10 @@ namespace My.VideoParser
             {
                 return true;
             }
-
+            if(element.NextSibling != null && element.NextSibling.OuterHtml.ToLower().Contains("transcript"))
+            {
+                return true;
+            }
             while (element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
             {
                 element = element.NextSibling;
@@ -56,7 +59,10 @@ namespace My.VideoParser
             {
                 element = element.ParentNode;
             }
-
+            if(element.OuterHtml.ToLower().Contains("transcript"))
+            {
+                return true;
+            }
             while (element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
             {
                 element = element.NextSibling;
@@ -70,38 +76,15 @@ namespace My.VideoParser
         
         public static bool CheckTranscript(HtmlNode element, out string YesOrNo)
         {   //If you want a string Yes or No output instead of a bool
-            if (element.OuterHtml.ToLower().Contains("transcript"))
+            if(CheckTranscript(element))
             {
                 YesOrNo = "Yes";
                 return true;
-            }
-
-            while (element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
+            } else
             {
-                element = element.NextSibling;
-                if (element.OuterHtml.ToLower().Contains("transcript"))
-                {
-                    YesOrNo = "Yes";
-                    return true;
-                }
-            }
-
-            while (element.ParentNode != null && !(element.ParentNode.Name == "#document"))
-            {
-                element = element.ParentNode;
-            }
-
-            while (element.NextSibling != null && !element.NextSibling.OuterHtml.ToLower().Contains("iframe"))
-            {
-                element = element.NextSibling;
-                if (element.OuterHtml.ToLower().Contains("transcript"))
-                {
-                    YesOrNo = "Yes";
-                    return true;
-                }
-            }
-            YesOrNo = "No";
-            return false;
+                YesOrNo = "No";
+                return false;
+            }            
         }
         public static string GetYTChannelName(string id)
         {
