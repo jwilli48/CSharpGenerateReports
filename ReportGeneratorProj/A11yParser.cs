@@ -302,6 +302,11 @@
                 {
                     issues += "\nEmpty table should be removed";
                 }
+
+                var numRowsWithMultipleHeaders = table_rows?.Count(c => c.ChildNodes.Where(child => child.Name == "th").Count() > 1 );
+                if (numRowsWithMultipleHeaders != null && numRowsWithMultipleHeaders > 1) {
+                    issues += "\nTables should not have multiple header rows, they should be split into seperate tables or have the headers combined";
+                }
                 //If any issues were found then add it to the list
                 if (issues != null && issues != "")
                 {
