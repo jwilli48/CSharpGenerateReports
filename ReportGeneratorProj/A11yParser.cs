@@ -35,7 +35,7 @@
     {
         //Class to do an accessibiltiy report
         public A11yParser() { }
-        private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";
+        private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";      
         public override void ProcessContent(Dictionary<string, string> page_info)
         {
             //Function to begin processing a page and storing the data within the Data list (see RParserBase class)

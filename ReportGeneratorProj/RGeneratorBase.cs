@@ -5,6 +5,9 @@
     using HtmlAgilityPack;
     using System.Threading.Tasks;
     using My.CanvasApi;
+    using System.Reflection;
+    using System.IO;
+    using Newtonsoft.Json;
 
     public class DataToParse
     {   //Object stored in the ReportParser objects that turns the html string from the CourseInfo object into a live HTML dom to be used by the parsers.
@@ -26,10 +29,20 @@
     public abstract class RParserBase
     {
         //Base class for each of the reports
-        public RParserBase() { }
+        public RParserBase()
+        {
+            string json = "";
+            string path = Assembly.GetEntryAssembly().Location.Contains("source") ? @"C:\Users\jwilli48\Desktop\AccessibilityTools\A11yPanel\options.json" :
+                                System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + @"\options.json";
+            using (StreamReader r = new StreamReader(path))
+            {
+                json = r.ReadToEnd();
+            }
+            Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+        }
         public List<PageData> Data { get; set; } = new List<PageData>();
         public abstract void ProcessContent(Dictionary<string, string> page_info);
-
+        public My.PanelOptions Options { get; set; }
     }
    
     public class GenerateReport
