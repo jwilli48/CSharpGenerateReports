@@ -8,19 +8,32 @@
     using System.IO;
     using My.StringExtentions;
     using Newtonsoft.Json;
+    using System.Reflection;
 
     public class CreateExcelReport
     {   //Class to take care of creating the report
         public CreateExcelReport(string destination_path)
-        {   //Need to have the destination for the report input at creation. This is the entire path including file name
+        {
+            string json = "";
+            string path = Assembly.GetEntryAssembly().Location.Contains("source") ? @"C:\Users\jwilli48\Desktop\AccessibilityTools\A11yPanel\options.json" :
+                                System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + @"\options.json";
+            using (StreamReader r = new StreamReader(path))
+            {
+                json = r.ReadToEnd();
+            }
+            Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+            PathToExcelTemplate = Options.ExcelTemplatePath;
+            //Need to have the destination for the report input at creation. This is the entire path including file name
             this.Destination = destination_path;
             //Create the excel object from the template and set helper variables to be used accross functions
             this.Excel = new ExcelPackage(new FileInfo(PathToExcelTemplate));
             this.Cells = Excel.Workbook.Worksheets[1].Cells;
             this.RowNumber = 9;
+            
         }
+        private My.PanelOptions Options;
         private string Destination;
-        private string PathToExcelTemplate = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\CAR - Accessibility Review Template.xlsx";
+        private string PathToExcelTemplate;
         private ExcelPackage Excel;
         private ExcelRange Cells;
         private int RowNumber;
@@ -70,7 +83,7 @@
             List<JsonDataFormat> json = new List<JsonDataFormat>();
             var numIssues = 0;
             var row = 9;
-            string dataDir = @"M:\DESIGNER\Content EditorsELTA\Accessibility Assistants\JSON_DATA\Accessibility";
+            string dataDir = Options.JsonDataDir;
             Cells = Excel.Workbook.Worksheets[1].Cells;
             while (numIssues < Excel.Workbook.Worksheets[1].Tables[0].Address.Rows)
             {

@@ -34,10 +34,13 @@
     public class A11yParser : RParserBase
     {
         //Class to do an accessibiltiy report
-        public A11yParser() { }
-        private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";      
-        public override void ProcessContent(Dictionary<string, string> page_info)
+        public A11yParser()
         {
+            PathToChromedriver = Options.ChromeDriverPath;
+        }
+        private string PathToChromedriver;    
+        public override void ProcessContent(Dictionary<string, string> page_info)
+        {            
             //Function to begin processing a page and storing the data within the Data list (see RParserBase class)
             //Make sure page is not empty
             var url = page_info.Keys.ElementAt(0);  //key is the url, points to the body (HTML)
@@ -46,7 +49,7 @@
                 return;
             }
             //Ignore certain pages
-            if(url.ToLower().Contains("imagegallery.html") || url.ToLower().Contains("coursemedia.html"))
+            if(Options.FilesToIgnore.Contains(url.ToLower()))
             {
                 return;
             }

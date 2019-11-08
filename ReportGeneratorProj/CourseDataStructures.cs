@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using My.CanvasApi;
+using Newtonsoft.Json;
+using System.Reflection;
 
 namespace ReportGenerators
 {
@@ -21,7 +23,14 @@ namespace ReportGenerators
             string[] array = course_path.Split('\\');
             this.CourseName = array.Take(array.Length - 1).LastOrDefault();
             this.CourseCode = array.Take(array.Length - 1).LastOrDefault();
-
+            string json = "";
+            string path = Assembly.GetEntryAssembly().Location.Contains("source") ? @"C:\Users\jwilli48\Desktop\AccessibilityTools\A11yPanel\options.json" :
+                                System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + @"\options.json";
+            using (StreamReader r = new StreamReader(path))
+            {
+                json = r.ReadToEnd();
+            }
+            My.PanelOptions Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
             PageHtmlList = new List<Dictionary<string, string>>();
             Parallel.ForEach(Directory.GetFiles(course_path, "*.html", SearchOption.TopDirectoryOnly), file =>
             {
@@ -30,10 +39,10 @@ namespace ReportGenerators
                 switch (Path.GetPathRoot(file))
                 {
                     case "I:\\":
-                        location = $"https://iscontent.byu.edu/{file.Replace("I:\\", "")}";
+                        location = $"{Options.IDriveContentUrl}/{file.Replace("I:\\", "")}";
                         break;
                     case "Q:\\":
-                        location = $"https://isdev.byu.edu/courses/{file.Replace("Q:\\", "")}";
+                        location = $"{Options.QDriveContentUrl}/{file.Replace("Q:\\", "")}";
                         break;
                     default:
                         location = $"file:///{file}";

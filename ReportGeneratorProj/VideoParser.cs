@@ -12,6 +12,8 @@ using My.SeleniumExtentions;
 using System.Xml;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
+using Newtonsoft.Json;
+using System.Reflection;
 
 namespace My.VideoParser
 {
@@ -34,8 +36,22 @@ namespace My.VideoParser
 
     public static class VideoParser
     {
+        static VideoParser()
+        {
+            string json = "";
+            string path = Assembly.GetEntryAssembly().Location.Contains("source") ? @"C:\Users\jwilli48\Desktop\AccessibilityTools\A11yPanel\options.json" :
+                                System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + @"\options.json";
+            using (StreamReader r = new StreamReader(path))
+            {
+                json = r.ReadToEnd();
+            }
+            Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+            Options.FilesToIgnore.ForEach(f => f = f.ToLower());
+            GoogleApi = Options.GoogleApi;
+        }
+        private static My.PanelOptions Options;
         //Static class to be used to parse information for any videos.
-        private static string GoogleApi = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyGoogleApi.txt").Replace("\r\n", "");
+        private static string GoogleApi;
         public static bool CheckTranscript(HtmlNode element)
         {
             if (element.OuterHtml.ToLower().Contains("transcript"))
@@ -162,6 +178,7 @@ namespace My.VideoParser
             dynamic length = null;
             try
             {
+                wait.UntilElementIsVisible(By.CssSelector(".play-button")).Click();
                 while ("0:00" == length || "" == length || null == length)
                 {
                     length = wait.UntilElementIsVisible(By.CssSelector("span[class*=\"duration\"]")).Text;

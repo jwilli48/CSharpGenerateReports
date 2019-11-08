@@ -11,39 +11,22 @@ namespace My
 {
     public class PanelOptions
     {
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string ChromeDriverPath { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string FirefoxDriverPath { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string QDriveContentUrl { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string IDriveContentUrl { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        Dictionary<string, string> BrightCoveCred { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string JsonDataDir { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        Dictionary<string, string> BYUOnlineCreds { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        Dictionary<string, string> BYUISTestCreds { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        Dictionary<string, string> BYUMasterCoursesCreds { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        Dictionary<string, string> ByuCred { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string ReportPath { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string PowershellScriptDir { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string ExcelTemplatePath { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string GoogleApi { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        List<string> FilesToIgnore { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string HighScorePath { get; set; }
-        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        string CourseBackupDir { get; set; }
+        public string ChromeDriverPath { get; set; }
+        public string FirefoxDriverPath { get; set; }
+        public string QDriveContentUrl { get; set; }
+        public string IDriveContentUrl { get; set; }
+        public Dictionary<string, string> BrightCoveCred { get; set; }
+        public string JsonDataDir { get; set; }
+        public Dictionary<string, string> BYUOnlineCreds { get; set; }
+        public Dictionary<string, string> BYUISTestCreds { get; set; }
+        public Dictionary<string, string> BYUMasterCoursesCreds { get; set; }
+        public Dictionary<string, string> ByuCred { get; set; }
+        public string ReportPath { get; set; }
+        public string PowershellScriptDir { get; set; }
+        public string ExcelTemplatePath { get; set; }
+        public string GoogleApi { get; set; }
+        public List<string> FilesToIgnore { get; set; }
+        public string HighScorePath { get; set; }
+        public string CourseBackupDir { get; set; }
     }
 }

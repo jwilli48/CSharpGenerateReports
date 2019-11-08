@@ -12,20 +12,32 @@
     using System.Management.Automation;
     using My.StringExtentions;
     using My.VideoParser;
-
+    using System.Reflection;
+    using Newtonsoft.Json;
 
     public class MediaParser : RParserBase
     {   //Object to parse course pages for media elements (main user of the VideoParser class)
-        private string PathToChromedriver = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\PowerShell\Modules\SeleniumTest";
+        private string PathToChromedriver;
+        private My.PanelOptions Options;
         //Class to do a media report
         public MediaParser()
-        {   //Need to create the ChromeDriver for this class to find video lengths
+        {
+            string json = "";
+            string path = Assembly.GetEntryAssembly().Location.Contains("source") ? @"C:\Users\jwilli48\Desktop\AccessibilityTools\A11yPanel\options.json" :
+                                System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + @"\options.json";
+            using (StreamReader r = new StreamReader(path))
+            {
+                json = r.ReadToEnd();
+            }
+            Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+            PathToChromedriver = Options.ChromeDriverPath;
+            //Need to create the ChromeDriver for this class to find video lengths
             var chromeDriverService = ChromeDriverService.CreateDefaultService(PathToChromedriver);
             chromeDriverService.HideCommandPromptWindow = true;
             var ChromeOptions = new ChromeOptions();
             //ChromeOptions.AddArguments("headless", "muteaudio");
             Chrome = new ChromeDriver(chromeDriverService, ChromeOptions);
-            Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));
+            Wait = new WebDriverWait(Chrome, new TimeSpan(0, 0, 5));                        
         }
         ~MediaParser()
         {   //Need to make sure we dispose of the ChromeDriver when this class is disposed
@@ -44,12 +56,8 @@
                     if (!LoggedIntoBrightcove)
                     {   //Need to make sure the ChromeDriver is logged into brightcove
                         //Since I already had a powershell script to do this I just load and run that script
-                        string BrightCoveUserName = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.Desktop) + @"\AccessibilityTools\ReportGenerators-master\Passwords\MyBrightcoveUsername.txt").Replace("\n", "").Replace("\r", "");
-                        var posh = PowerShell.Create();
-                        posh.AddScript("process{$c = Get-Content \"$HOME\\Desktop\\AccessibilityTools\\ReportGenerators-master\\Passwords\\MyBrightcovePassword.txt\"; $s = $c | ConvertTo-SecureString; Write-Host (New-Object System.Management.Automation.PSCredential -ArgumentList 'asdf', $s).GetNetworkCredential().Password}"
-                        );
-                        posh.Invoke();
-                        var password = posh.Streams.Information[0].ToString();
+                        string BrightCoveUserName = Options.BrightCoveCred["Username"];
+                        var password = Options.BrightCoveCred["Password"];
 
                         Chrome.Url = "https://signin.brightcove.com/login?redirect=https%3A%2F%2Fstudio.brightcove.com%2Fproducts%2Fvideocloud%2Fmedia";
                         Wait.UntilElementIsVisible(By.CssSelector("input[name*=\"email\"]")).SendKeys(BrightCoveUserName);

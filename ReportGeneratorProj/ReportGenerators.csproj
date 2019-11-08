@@ -138,6 +138,7 @@
     <Compile Include="CreateExcelReport.cs" />
     <Compile Include="LinkParser.cs" />
     <Compile Include="MediaParser.cs" />
+    <Compile Include="PanelOptions.cs" />
     <Compile Include="RGeneratorBase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SeleniumExtentions.cs" />

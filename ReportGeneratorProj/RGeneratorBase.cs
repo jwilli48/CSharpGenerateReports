@@ -39,6 +39,7 @@
                 json = r.ReadToEnd();
             }
             Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+            Options.FilesToIgnore.ForEach(f => f = f.ToLower());
         }
         public List<PageData> Data { get; set; } = new List<PageData>();
         public abstract void ProcessContent(Dictionary<string, string> page_info);

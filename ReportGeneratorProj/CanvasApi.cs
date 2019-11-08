@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Web.Script.Serialization;
 using RestSharp;
 using System.IO;
+using System.Reflection;
+using Newtonsoft.Json;
 
 namespace My.CanvasApi
 {
@@ -90,41 +92,40 @@ namespace My.CanvasApi
     {
         //Class to control interaction with the Canvas API
         //Token is needed to authenticate, will need to adjust this to be stored in a seperate file instead of in this code.
-        private static string token = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
+        private static string token;
         //THe base domain url for the API
         //BYU has 3 main domain names
-        private static string domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
+        private static string domain;
         public static string CurrentDomain = "";
-        public static void ResetApiCreds()
-        {
-            token = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["Token"]);
-            domain = (new JavaScriptSerializer().Deserialize<Dictionary<string, string>>(File.ReadAllText((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json")))["BaseUri"]);
-        }
-        public static void ChangeDomain(string domain)
-        {
-            CurrentDomain = domain;
-            switch (domain)
+        public static void ChangeDomain(string domain_name)
+        {        
+            string json = "";
+            string path = Assembly.GetEntryAssembly().Location.Contains("source") ? @"C:\Users\jwilli48\Desktop\AccessibilityTools\A11yPanel\options.json" :
+                                System.IO.Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + @"\options.json";
+            using (StreamReader r = new StreamReader(path))
+            {
+                json = r.ReadToEnd();
+            }
+            My.PanelOptions Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+            CurrentDomain = domain_name;
+            switch (domain_name)
             {
                 case "BYU Online": //BYU
-                    File.Copy((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\BYU_CanvasApiCreds.json"), 
-                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), 
-                        true);
+                    token = Options.BYUOnlineCreds["Token"];
+                    domain = Options.BYUOnlineCreds["BaseUri"];
                     break;
                 case "BYU IS Test": //test
-                    File.Copy((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\TEST_CanvasApiCreds.json"),
-                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), 
-                        true);
+                    token = Options.BYUISTestCreds["Token"];
+                    domain = Options.BYUISTestCreds["BaseUri"];
                     break;
                 case "BYU Master Courses":
-                    File.Copy((Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\MASTER_CanvasApiCreds.json"),
-                        (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\CanvasApiCreds.json"), 
-                        true);
+                    token = Options.BYUMasterCoursesCreds["Token"];
+                    domain = Options.BYUMasterCoursesCreds["BaseUri"];
                     break;
                 case "Directory":
                     //Directory, nothing should be needed
                     break;
             }
-            ResetApiCreds();
         }
         public static CanvasCourse GetCanvasCourse(int course_id)
         {
