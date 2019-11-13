@@ -13,6 +13,9 @@
     using OpenQA.Selenium.Support.UI;
     using My.SeleniumExtentions;
 
+    /// <summary>
+    /// Object to receive color contrast response
+    /// </summary>
     public class ColorContrast
     {   //Helper structure to get the information from the WebAIM color contrast API.
         public double ratio { get; set; }
@@ -31,14 +34,20 @@
 
     }
 
+    /// <summary>
+    /// Main class for creating accessibility report
+    /// </summary>
     public class A11yParser : RParserBase
     {
-        //Class to do an accessibiltiy report
         public A11yParser()
         {
             PathToChromedriver = Options.ChromeDriverPath;
         }
         private string PathToChromedriver;    
+        /// <summary>
+        /// Main function to begin processing pages. Calls all the other functions. 
+        /// </summary>
+        /// <param name="page_info"></param>
         public override void ProcessContent(Dictionary<string, string> page_info)
         {            
             //Function to begin processing a page and storing the data within the Data list (see RParserBase class)
@@ -54,7 +63,9 @@
                 return;
             }
 
-            ////Go through the online version to make sure there aren't JS issues
+            // No long in use as we need to save a valid XPath. JavaScript messes it up. 
+
+            //// Go through the online version to make sure there aren't JS issues
             //if (new Regex(@"iscontent\.byu\.edu|isdev\.byu\.edu|file:///").IsMatch(url))
             //{   //Get the HTML from a browser so we can see if any accessibility issues were created with JavaScript.
             //    //This is run in a multi-threaded environment, so we want to limit how long we use the browser as it could dramtically slow things down if it tries to open to many.
@@ -114,6 +125,7 @@
             //}
             
         }
+
         private void ProcessLinks(DataToParse PageDocument)
         {
             //Get all links within page
@@ -183,6 +195,7 @@
                 }
             }
         }
+
         private void ProcessImages(DataToParse PageDocument)
         {
             //Get list of images
@@ -568,6 +581,7 @@
                 }
             }
         }
+
         private void ProcessVideoTags(DataToParse PageDocument)
         {   //process any video tags
             var videotag_list = PageDocument.Doc
@@ -609,6 +623,7 @@
                 }
             }
         }
+
         private void ProcessFlash(DataToParse PageDocument)
         {   //If any flash is found it is automatically marked as inaccessible
             var flash_list = PageDocument.Doc

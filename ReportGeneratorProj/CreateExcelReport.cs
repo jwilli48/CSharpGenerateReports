@@ -28,8 +28,7 @@
             //Create the excel object from the template and set helper variables to be used accross functions
             this.Excel = new ExcelPackage(new FileInfo(PathToExcelTemplate));
             this.Cells = Excel.Workbook.Worksheets[1].Cells;
-            this.RowNumber = 9;
-            
+            this.RowNumber = 9;            
         }
         private My.PanelOptions Options;
         private string Destination;
