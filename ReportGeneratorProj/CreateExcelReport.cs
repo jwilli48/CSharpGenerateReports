@@ -47,6 +47,7 @@
             public string DescriptiveError { get; set; }
             public string Notes { get; set; }
             public string html { get; set; }
+            public string Url { get; set; }
         }
         public void CreateReport(List<PageData> A11yData, List<PageData> MediaData, List<PageData> LinkData)
         {   //Public method to create the report from any input (can put null in place of any of the lists if you only need a certain input).
@@ -85,11 +86,12 @@
             string dataDir = Options.JsonDataDir;
             Cells = Excel.Workbook.Worksheets[1].Cells;
             while (numIssues < Excel.Workbook.Worksheets[1].Tables[0].Address.Rows)
-            {
+            {                
                 var data = new JsonDataFormat
                 {
                     Completed = (String)Cells[row, 2].Value == "Not Started" ? false : true,
                     Location = (String)Cells[row, 3].Value,
+                    Url = Cells[row, 3]?.Hyperlink?.ToString(),
                     IssueType = (String)Cells[row, 4].Value,
                     DescriptiveError = (String)Cells[row, 5].Value,
                     Notes = (String)Cells[row, 6].Value,

@@ -38,7 +38,7 @@
             {
                 json = r.ReadToEnd();
             }
-            Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);
+            Options = JsonConvert.DeserializeObject<My.PanelOptions>(json);          
             Options.FilesToIgnore.ForEach(f => f = f.ToLower());
         }
         public List<PageData> Data { get; set; } = new List<PageData>();
@@ -54,8 +54,6 @@
         {
             A11yParser a11YParser = new A11yParser();
             CourseInfo course = new CourseInfo(@"Q:\BrainHoney\Courses\ACC-200\ACC-200-M001\HTML");
-
-
         }
     }
 }

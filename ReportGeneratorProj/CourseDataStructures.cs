@@ -16,6 +16,95 @@ namespace ReportGenerators
         //This CourseInfo class will also use the CanvasAPI static class in order to fill it with the course information upon construction (this is the longest time consuming part of the program)
         //Can't really make it multithreaded as the CanvasAPI has an access limit that would be used up to quickly if we run multiple requests at the same time.
         //Should maybe make the fill object a mehtod instead of just inside the constructor.
+        public class ItemInfo
+        {
+            public string type { get; set; }
+            public CanvasPage page { get; set; }
+            public CanvasDiscussionTopic discussion { get; set; }
+            public CanvasAssignment assignment { get; set; }
+            public CanvasQuiz quiz { get; set; }
+            public List<CanvasQuizQuesiton> quiz_questions { get; set; }
+            public String getContent(string question_id, string answer_id, bool comment)
+            {
+                switch (type)
+                {
+                    case "Page":
+                        return page.body;
+                    case "Discussion":
+                        return discussion.message;
+                    case "Assignment":
+                        return assignment.description;
+                    case "Quiz":
+                        if(question_id == "")
+                        {
+                            return quiz.description;
+                        }
+                        var q = quiz_questions[int.Parse(question_id)];
+                        if(answer_id == "")
+                        {
+                            return q.question_text;
+                        }
+                        if(comment)
+                        {
+                            return q.answers[int.Parse(answer_id)].answer_comments;
+                        }else
+                        {
+                            return q.answers[int.Parse(answer_id)].html;
+                        }
+                    default:
+                        return "";
+                }
+            }
+
+            public ItemInfo SaveContent(int course_id, string new_html, string question_id, string answer_id, bool comment)
+            {
+                switch (type)
+                {
+                    case "Page":
+                        CanvasPage new_page = CanvasApi.PostNewPageContent(course_id, page.url, new_html);
+                        page = new_page;
+                        break;
+                    case "Discussion":
+                        CanvasDiscussionTopic new_topic = CanvasApi.PostNewDiscussionMessage(course_id, discussion.id, new_html);
+                        discussion = new_topic;
+                        break;
+                    case "Assignment":
+                        CanvasAssignment new_assignment = CanvasApi.PostNewAssignmentDescription(course_id, assignment.id, new_html);
+                        assignment = new_assignment;
+                        break;
+                    case "Quiz":
+                        if (question_id == "")
+                        {
+                            CanvasQuiz new_quiz = CanvasApi.PostNewQuizDescription(course_id, quiz.id, new_html);
+                            quiz = new_quiz;
+                            break;
+                        }                        
+                        var q = quiz_questions[int.Parse(question_id)];
+                        if (answer_id == "")
+                        {
+                            CanvasQuizQuesiton new_q = CanvasApi.PostNewQuizQuestionText(course_id, quiz.id, q.id, new_html);
+                            q = new_q;
+                            break;
+                        }
+                        if (comment)
+                        {
+                            q.answers[int.Parse(answer_id)].answer_comments = new_html;
+                            CanvasQuizQuesiton new_q = CanvasApi.PostNewQuizQuestionAnswerComment(course_id, quiz.id, q.id, q.answers);
+                            quiz_questions[int.Parse(question_id)] = new_q;
+                        }
+                        else
+                        {
+                            q.answers[int.Parse(answer_id)].html = new_html;
+                            CanvasQuizQuesiton new_q = CanvasApi.PostNewQuizQuestionAnswer(course_id, quiz.id, q.id, q.answers);
+                            quiz_questions[int.Parse(question_id)] = new_q;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                return this;
+            }
+        }
         public CourseInfo(string course_path)
         {
             //Constructor for if a directory path is input
@@ -58,6 +147,7 @@ namespace ReportGenerators
                 }
             });
         }
+             
         public CourseInfo(int course_id)
         {
             //Constructor for a canvas course ID number
@@ -68,100 +158,140 @@ namespace ReportGenerators
             CourseCode = course_info.course_code;
             //Need to make sure the HtmlList is initialized so we can store all of the info
             PageHtmlList = new List<Dictionary<string, string>>();
+            PageInfoList = new List<Dictionary<string, ItemInfo>>();
+            var options = new ParallelOptions { MaxDegreeOfParallelism = 1 };
             //Begin to loop through all modules of the course
-            Parallel.ForEach(CanvasApi.GetCanvasModules(course_id), module =>
+            Parallel.ForEach(CanvasApi.GetCanvasModules(course_id), options, module =>
             {
                //Console.WriteLine(module.name);
                 //Loop through all the items for each module
-                Parallel.ForEach(CanvasApi.GetCanvasModuleItems(course_id, module.id), item =>
+                Parallel.ForEach(CanvasApi.GetCanvasModuleItems(course_id, module.id), options, item =>
                 {
-                   wait_for_rate_limit:
-                   //The object to connect the item location and its HTML body
-                   Dictionary<string, string> LocationAndBody = new Dictionary<string, string>();
-                   //Console.WriteLine(item.title);
-                   try //This try block is just in case we are not authroized to access any of these pages
-                   {
-                       switch (item.type)
-                       { //Need to see what type of item it is to determine request needed
-                           case "Page":
-                               CanvasPage page = CanvasApi.GetCanvasPage(course_id, item.page_url);
-                               LocationAndBody[item.url] = page.body;
-                               break;
-                           case "Discussion":
-                               CanvasDiscussionTopic discussion = CanvasApi.GetCanvasDiscussionTopics(course_id, item.content_id);
-                               LocationAndBody[item.url] = discussion.message;
-                               break;
-                           case "Assignment":
-                               CanvasAssignment assignment = CanvasApi.GetCanvasAssignments(course_id, item.content_id);
-                               LocationAndBody[item.url] = assignment.description;
-                               break;
-                           case "Quiz":
-                               CanvasQuiz quiz = CanvasApi.GetCanvasQuizzes(course_id, item.content_id);
-                               LocationAndBody[item.url] = quiz.description;
-                               try
-                               { //Quizes require more as we need to gather question and answer info
-                                 //Again may be able to see basic quiz but not authorized for quiz questions, this the try block.
-                                 //Loop through all questions for specific quiz
+                    wait_for_rate_limit:
+                    //The object to connect the item location and its HTML body
+                    Dictionary<string, string> LocationAndBody = new Dictionary<string, string>();
+                    Dictionary<string, ItemInfo> PageInfoItem = new Dictionary<string, ItemInfo>();
+                    if(item.url == null)
+                    {
+                        return;
+                    }
+                    PageInfoItem[item.url] = new ItemInfo();
+                    PageInfoItem[item.url].type = item.type;
+                    //Console.WriteLine(item.title);
+                    try //This try block is just in case we are not authroized to access any of these pages
+                    {
+                        switch (item.type)
+                        { //Need to see what type of item it is to determine request needed
+                            case "Page":
+                                CanvasPage page = CanvasApi.GetCanvasPage(course_id, item.page_url);
+                                LocationAndBody[item.url] = page.body;
+                                PageInfoItem[item.url].page = page;
+                                break;
+                            case "Discussion":
+                                CanvasDiscussionTopic discussion = CanvasApi.GetCanvasDiscussionTopics(course_id, item.content_id);
+                                LocationAndBody[item.url] = discussion.message;
+                                PageInfoItem[item.url].discussion = discussion;
+                            break;
+                            case "Assignment":
+                                CanvasAssignment assignment = CanvasApi.GetCanvasAssignments(course_id, item.content_id);
+                                LocationAndBody[item.url] = assignment.description;
+                                PageInfoItem[item.url].assignment = assignment;
+                            break;
+                            case "Quiz":
+                                CanvasQuiz quiz = CanvasApi.GetCanvasQuizzes(course_id, item.content_id);
+                                LocationAndBody[item.url] = quiz.description;
+                                PageInfoItem[item.url].quiz = quiz;
+                                PageInfoItem[item.url].quiz_questions = new List<CanvasQuizQuesiton>();
+                                try
+                                { //Quizes require more as we need to gather question and answer info
+                                    //Again may be able to see basic quiz but not authorized for quiz questions, this the try block.
+                                    //Loop through all questions for specific quiz
+                                    int question_number = 0;
                                     foreach (CanvasQuizQuesiton question in CanvasApi.GetCanvasQuizQuesitons(course_id, item.content_id))
                                     {
-                                       LocationAndBody[item.url] += "\n" + question.question_text;
+                                        PageInfoItem[item.url].quiz_questions.Add(question);
+                                        Dictionary<string, string> LAndB = new Dictionary<string, string>();
+                                        LAndB[item.url+$"?question_num={question_number}"] = question.question_text; 
+                                        lock(PageHtmlList)
+                                        {
+                                            PageHtmlList.Add(LAndB);
+                                        }
+                                        int answer_num = 0;
+                                        int answer_comment_num = 0;
                                         //Loop through all answers in the quiz
                                         foreach (CanvasQuizQuestionAnswers answer in question.answers)
                                         {
-                                           LocationAndBody[item.url] += "\n" + answer.html;
-                                           LocationAndBody[item.url] += "\n" + answer.comments_html;
+                                            Dictionary<string, string> answerDict = new Dictionary<string, string>();
+                                            answerDict[item.url + $"?question_num={question_number}&answer_num={answer_num}"] = "\n" + answer?.html;
+                                            lock (PageHtmlList)
+                                            {
+                                                PageHtmlList.Add(answerDict);
+                                            }
+                                            Dictionary<string, string> commentDict = new Dictionary<string, string>();
+                                            commentDict[item.url + $"?question_num={question_number}&answer_comment={answer_comment_num}"] = "\n" + answer?.comments_html;
+                                            lock (PageHtmlList)
+                                            {
+                                                PageHtmlList.Add(commentDict);
+                                            }
+                                            answer_comment_num++;
+                                            answer_num++;
                                         }
+                                        question_number++;
                                     }
-                               }
-                               catch (Exception e)
-                               {
+                                }
+                                catch (Exception e)
+                                {
                                     //Check if the exception was an unauthorized request
                                     if (e.Message.Contains("Unauthorized"))
                                     {
-                                       //Console.WriteLine("ERROR: (401) Unauthorized, can not search quiz questions. Skipping...");
+                                        //Console.WriteLine("ERROR: (401) Unauthorized, can not search quiz questions. Skipping...");
                                     }
                                     else
                                     {
-                                       //Console.WriteLine("{0}", e);
+                                        //Console.WriteLine("{0}", e);
                                     }
-                               }
-                               break;
-                           default:
-                               //Console.WriteLine($"Not Supported:\n{item.type}");
-                               LocationAndBody["Empty"] = null;
-                               break;
-                       }
+                                }
+                            break;
+                            default:
+                                //Console.WriteLine($"Not Supported:\n{item.type}");
+                                LocationAndBody["Empty"] = null;
+                                break;
+                        }
                         //Add the location and HTML body to the List
                         lock (PageHtmlList)
                         {
                             PageHtmlList.Add(LocationAndBody);
                         }
-                   }
-                   catch (Exception e)
-                   {
+                        lock (PageInfoList)
+                        {
+                            PageInfoList.Add(PageInfoItem);
+                        }
+                    }
+                    catch (Exception e)
+                    {
                         //Check if it was unauthorized
                         if (e.Message.Contains("Unauthorized"))
                         {
-                           //Console.WriteLine($"ERROR: (401) Unauthorized, can not search:\n{item.title}\n{item.type}");
+                            //Console.WriteLine($"ERROR: (401) Unauthorized, can not search:\n{item.title}\n{item.type}");
                         }
                         else if (e.Message.Contains("403"))
                         {
-                           Console.WriteLine($"ERROR: (403) Forbidden (Rate Limit Exceedd)");
-                           goto wait_for_rate_limit;
-
+                            Console.WriteLine($"ERROR: (403) Forbidden (Rate Limit Exceedd)");
+                            goto wait_for_rate_limit;
                         }
                         else
                         {
-                           //Console.WriteLine("{0}", e);
+                            //Console.WriteLine("{0}", e);
                         }
-                   }
+                    }
                });
            });
         }
         public dynamic CourseIdOrPath { get; }
         public string CourseName { get; }
         public string CourseCode { get; }
-        public List<Dictionary<string, string>> PageHtmlList { get; set; }
+        public List<Dictionary<string, string>> PageHtmlList { get; set; }        
+        public List<Dictionary<string, ItemInfo>> PageInfoList { get; set; }
     }
     public class PageData : IEquatable<PageData>
     {

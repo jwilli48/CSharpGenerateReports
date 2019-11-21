@@ -31,7 +31,6 @@
             }
             return sb.ToString();
         }
-
     }
 
     /// <summary>

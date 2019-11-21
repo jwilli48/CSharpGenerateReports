@@ -5,6 +5,10 @@ using RestSharp;
 using System.IO;
 using System.Reflection;
 using Newtonsoft.Json;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using System.Web;
 
 namespace My.CanvasApi
 {
@@ -88,6 +92,10 @@ namespace My.CanvasApi
         public string question_text { get; set; }
         public List<CanvasQuizQuestionAnswers> answers { get; set; }
     }
+
+    /// <summary>
+    /// Static class that is used to access canvas data
+    /// </summary>
     public static class CanvasApi
     {
         //Class to control interaction with the Canvas API
@@ -152,7 +160,7 @@ namespace My.CanvasApi
             //Request for all items within a module
             string url = $"{domain}/api/v1/courses/{course_id}/modules/{module_id}/items?per_page=10000&access_token={token}";
             var restClient = new RestClient(url);
-            var request = new RestRequest(Method.GET);
+            var request = new RestRequest(Method.GET);            
             //Returns a List of CanvasModuleItems
             var response = restClient.Execute<List<CanvasModuleItem>>(request);
             return response.Data;
@@ -203,5 +211,138 @@ namespace My.CanvasApi
             return response.Data;
         }
 
+        public static CanvasPage PostNewPageContent(int course_id, string page_url, string new_html)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/pages/{page_url}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "wiki_page[body]",
+                Value = new_html,
+                Type = ParameterType.GetOrPost
+            };           
+            request.AddParameter(p);
+            var response = restClient.Execute<CanvasPage>(request);
+            return response.Data;
+        }
+
+        public static CanvasDiscussionTopic PostNewDiscussionMessage(int course_id, int discussion_id, string new_html)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/discussion_topics/{discussion_id}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "message",
+                Value = new_html,
+                Type = ParameterType.GetOrPost
+            };
+            request.AddParameter(p);
+            var response = restClient.Execute<CanvasDiscussionTopic>(request);
+            return response.Data;
+        }
+
+        public static CanvasAssignment PostNewAssignmentDescription(int course_id, int assignment_id, string new_html)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/assignments/{assignment_id}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "assignment[description]",
+                Value = new_html,
+                Type = ParameterType.GetOrPost
+            };
+            request.AddParameter(p);
+            var response = restClient.Execute<CanvasAssignment>(request);
+            return response.Data;
+        }
+
+        public static CanvasQuiz PostNewQuizDescription(int course_id, int quiz_id, string new_html)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/quizzes/{quiz_id}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "quiz[notify_of_update]",
+                Value = false,
+                Type = ParameterType.GetOrPost
+            };
+            RestSharp.Parameter p2 = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "quiz[description]",
+                Value = new_html,
+                Type = ParameterType.GetOrPost
+            };
+            request.AddParameter(p);
+            request.AddParameter(p2);
+            var response = restClient.Execute<CanvasQuiz>(request);
+            return response.Data;
+        }
+
+        public static CanvasQuizQuesiton PostNewQuizQuestionText(int course_id, int quiz_id, int question_id, string new_html)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions/{question_id}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "question[question_text]",
+                Value = new_html,
+                Type = ParameterType.GetOrPost
+            };
+            request.AddParameter(p);
+            var response = restClient.Execute<CanvasQuizQuesiton>(request);
+            return response.Data;
+        }
+
+        public static CanvasQuizQuesiton PostNewQuizQuestionAnswer(int course_id, int quiz_id, int question_id, List<CanvasQuizQuestionAnswers> new_answers)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions/{question_id}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "question[answers]",
+                Value = new_answers,
+                Type = ParameterType.GetOrPost
+            };
+            request.AddParameter(p);
+            var response = restClient.Execute<CanvasQuizQuesiton>(request);
+            return response.Data;
+        }
+
+        public static CanvasQuizQuesiton PostNewQuizQuestionAnswerComment(int course_id, int quiz_id, int question_id, List<CanvasQuizQuestionAnswers> new_answers)
+        {
+            string url = $"{domain}/api/v1/courses/{course_id}/quizzes/{quiz_id}/questions/{question_id}";
+            var restClient = new RestClient(url);
+            var request = new RestRequest(Method.PUT);
+            request.AddHeader("Authorization", $"Bearer {token}");
+            RestSharp.Parameter p = new RestSharp.Parameter
+            {
+                ContentType = "application/x-www-form-urlencoded",
+                Name = "question[answers]",
+                Value = new_answers,
+                Type = ParameterType.GetOrPost
+            };
+            request.AddParameter(p);
+            var response = restClient.Execute<CanvasQuizQuesiton>(request);
+            return response.Data;
+        }
     }
 }
