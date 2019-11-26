@@ -85,7 +85,7 @@
             var row = 9;
             string dataDir = Options.JsonDataDir;
             Cells = Excel.Workbook.Worksheets[1].Cells;
-            while (numIssues < Excel.Workbook.Worksheets[1].Tables[0].Address.Rows)
+            while (Cells[row, 2].Value != null && (String)Cells[row, 2].Value != "")
             {                
                 var data = new JsonDataFormat
                 {

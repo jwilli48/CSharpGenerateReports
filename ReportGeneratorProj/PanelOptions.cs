@@ -28,5 +28,8 @@ namespace My
         public List<string> FilesToIgnore { get; set; }
         public string HighScorePath { get; set; }
         public string CourseBackupDir { get; set; }
+        public string BaseExcelArchive { get; set; }
+        public string BaseMoveReportsDir { get; set; }
+        public string A11yEmail { get; set; }
     }
 }

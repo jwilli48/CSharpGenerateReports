@@ -159,7 +159,7 @@ namespace ReportGenerators
             //Need to make sure the HtmlList is initialized so we can store all of the info
             PageHtmlList = new List<Dictionary<string, string>>();
             PageInfoList = new List<Dictionary<string, ItemInfo>>();
-            var options = new ParallelOptions { MaxDegreeOfParallelism = 1 };
+            var options = new ParallelOptions { MaxDegreeOfParallelism = -1 };
             //Begin to loop through all modules of the course
             Parallel.ForEach(CanvasApi.GetCanvasModules(course_id), options, module =>
             {
